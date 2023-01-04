@@ -1,4 +1,3 @@
-#=
 using Oceananigans
 using GLMakie
 using Printf
@@ -71,7 +70,6 @@ simulation.output_writers[:timeseries] = JLD2OutputWriter(model, (; B);
                                                           overwrite_existing = true)
 
 run!(simulation)
-=#
 
 #####
 ##### Visualize
@@ -103,3 +101,6 @@ heatmap!(axw, wn, colormap=:balance, colorrange=(-wlim, wlim))
 
 display(fig)
 
+record(fig, "complex_domain_convection.mp4", 1:Nt, framerate=12) do nn
+    n[] = nn
+end
