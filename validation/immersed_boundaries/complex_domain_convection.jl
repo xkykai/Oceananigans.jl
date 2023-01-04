@@ -1,3 +1,4 @@
+#=
 using Oceananigans
 using GLMakie
 using Printf
@@ -22,8 +23,9 @@ grid = ImmersedBoundaryGrid(grid, GridFittedBottom(slope))
 
 model = NonhydrostaticModel(; grid,
                             advection = WENO(),
-                            tracers=:b,
-                            buoyancy=BuoyancyTracer())
+                            coriolis = FPlane(f=0.1),
+                            tracers = :b,
+                            buoyancy = BuoyancyTracer())
 
 # Cold blob
 h = 0.05
@@ -69,6 +71,7 @@ simulation.output_writers[:timeseries] = JLD2OutputWriter(model, (; B);
                                                           overwrite_existing = true)
 
 run!(simulation)
+=#
 
 #####
 ##### Visualize
@@ -79,18 +82,24 @@ bt = FieldTimeSeries(filename, "b")
 wt = FieldTimeSeries(filename, "w")
 Nt = length(bt.times)
 
-fig = Figure(resolution=(800, 600))
-axb = Axis(fig[1, 1])
-axw = Axis(fig[1, 2])
+fig = Figure(resolution=(1200, 600))
+
 slider = Slider(fig[2, 1:2], range=1:Nt, startvalue=1)
 n = slider.value
 
-b = @lift interior(bt[$n], :, 1, :)
-w = @lift interior(wt[$n], :, 1, :)
+B₀ = sum(interior(bt[1], :, 1, :)) / (Nx * Nz)
+titlestr = @lift string("Buoyancy, Δb = ",
+                        @sprintf("%.2e %%", (sum(interior(bt[$n], :, 1, :)) / (Nx * Nz) - B₀) / B₀))
+
+axb = Axis(fig[1, 1], title=titlestr)
+axw = Axis(fig[1, 2], title="Vertical velocity")
+
+bn = @lift interior(bt[$n], :, 1, :)
+wn = @lift interior(wt[$n], :, 1, :)
 
 wlim = maximum(abs, wt) / 2
-heatmap!(axb, b, colormap=:balance, colorrange=(-0.5, 0.5))
-heatmap!(axw, w, colormap=:balance, colorrange=(-wlim, wlim))
+heatmap!(axb, bn, colormap=:balance, colorrange=(-0.5, 0.5))
+heatmap!(axw, wn, colormap=:balance, colorrange=(-wlim, wlim))
 
 display(fig)
 
