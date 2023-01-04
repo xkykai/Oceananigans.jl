@@ -11,6 +11,7 @@ Ny = 1
 Nz = 64
 
 grid = RectilinearGrid(size = (Nx, Ny, Nz), 
+                       halo = (4, 4, 4),
                        x = (0, 1),
                        y = (0, 1),
                        z = (-1, 0),
@@ -26,17 +27,45 @@ model = NonhydrostaticModel(; grid,
 
 # Cold blob
 h = 0.05
-bᵢ(x, y, z) = - exp(-(x^2 + z^2) / 2h^2)
+x₀ = 0.5
+z₀ = -0.25
+bᵢ(x, y, z) = - exp(-((x - x₀)^2 + (z - z₀)^2) / 2h^2)
 set!(model, b=bᵢ)
 
 #####
 ##### Simulation
 #####
 
-simulation = Simulation(model, Δt=1e-3, stop_iteration=10)
+simulation = Simulation(model, Δt=1e-2, stop_time = 1)
 
-progress(sim) = @printf "Iter: %d, time: %s" iteration(sim) prettytime(sim) 
-simulation.callbacks[:p] = Callback(progress, IterationInterval(10))
+wall_time = Ref(time_ns())
+
+function progress(sim)
+    elapsed = time_ns() - wall_time[]
+    @info @sprintf("Iter: %d, time: %s, wall time: %s",
+                   iteration(sim), prettytime(sim), prettytime(1e-9 * elapsed))
+    wall_time[] = time_ns()
+    return nothing
+end
+                   
+simulation.callbacks[:p] = Callback(progress, IterationInterval(100))
+
+prefix = "complex_domain_convection"
+outputs = merge(model.velocities, model.tracers)
+
+simulation.output_writers[:jld2] = JLD2OutputWriter(model, outputs;
+                                                    filename = prefix * "_fields",
+                                                    schedule = TimeInterval(0.1),
+                                                    overwrite_existing = true)
+
+#=
+b = model.tracers.b
+B = Integral(b, dims=(1, 2, 3))
+simulation.output_writers[:timeseries] = JLD2OutputWriter(model, (; B);
+                                                          filename = prefix * "_time_series",
+                                                          schedule = IterationInterval(1),
+                                                          overwrite_existing = true)
+=#
 
 run!(simulation)
 
@@ -44,10 +73,19 @@ run!(simulation)
 ##### Visualize
 #####
 
-fig = Figure(resolution=(800, 600))
-ax = Axis(fig[1, 1])
+filename = prefix * "_fields.jld2"
+bt = FieldTimeSeries(filename, "b")
+wt = FieldTimeSeries(filename, "w")
+Nt = length(bt.times)
 
-b = interior(model.tracers.b, :, 1, :)
-heatmap!(ax, b)
+fig = Figure(resolution=(800, 600))
+axb = Axis(fig[1, 1])
+axw = Axis(fig[1, 2])
+
+n = Nt
+b = interior(bt[n], :, 1, :)
+w = interior(wt[n], :, 1, :)
+heatmap!(axb, b)
+heatmap!(axw, w)
 
 display(fig)
