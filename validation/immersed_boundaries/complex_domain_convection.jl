@@ -36,15 +36,18 @@ set!(model, b=bᵢ)
 ##### Simulation
 #####
 
-simulation = Simulation(model, Δt=1e-2, stop_time = 1)
+simulation = Simulation(model, Δt=1e-2, stop_time = 10)
 
 wall_time = Ref(time_ns())
 
 function progress(sim)
     elapsed = time_ns() - wall_time[]
+
     @info @sprintf("Iter: %d, time: %s, wall time: %s",
                    iteration(sim), prettytime(sim), prettytime(1e-9 * elapsed))
+
     wall_time[] = time_ns()
+
     return nothing
 end
                    
@@ -58,14 +61,12 @@ simulation.output_writers[:jld2] = JLD2OutputWriter(model, outputs;
                                                     schedule = TimeInterval(0.1),
                                                     overwrite_existing = true)
 
-#=
 b = model.tracers.b
-B = Integral(b, dims=(1, 2, 3))
+B = Field(Integral(b))
 simulation.output_writers[:timeseries] = JLD2OutputWriter(model, (; B);
                                                           filename = prefix * "_time_series",
                                                           schedule = IterationInterval(1),
                                                           overwrite_existing = true)
-=#
 
 run!(simulation)
 
@@ -81,11 +82,15 @@ Nt = length(bt.times)
 fig = Figure(resolution=(800, 600))
 axb = Axis(fig[1, 1])
 axw = Axis(fig[1, 2])
+slider = Slider(fig[2, 1:2], range=1:Nt, startvalue=1)
+n = slider.value
 
-n = Nt
-b = interior(bt[n], :, 1, :)
-w = interior(wt[n], :, 1, :)
-heatmap!(axb, b)
-heatmap!(axw, w)
+b = @lift interior(bt[$n], :, 1, :)
+w = @lift interior(wt[$n], :, 1, :)
+
+wlim = maximum(abs, wt) / 2
+heatmap!(axb, b, colormap=:balance, colorrange=(-0.5, 0.5))
+heatmap!(axw, w, colormap=:balance, colorrange=(-wlim, wlim))
 
 display(fig)
+
