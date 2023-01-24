@@ -17,7 +17,6 @@ function update_state!(model::NonhydrostaticModel, callbacks=[])
     
     # Mask immersed tracers
     tracer_masking_events = Tuple(mask_immersed_field!(c) for c in model.tracers)
-
     wait(device(model.architecture), MultiEvent(tracer_masking_events))
 
     # Fill halos for velocities and tracers

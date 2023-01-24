@@ -19,8 +19,10 @@ grid = RectilinearGrid(size = (Nx, Ny, Nz),
 
 slope(x, y) = x - 1
 grid = ImmersedBoundaryGrid(grid, GridFittedBottom(slope))
+closure = nothing #ScalarDiffusivity(ν=1e-3)
 
-model = NonhydrostaticModel(; grid,
+model = NonhydrostaticModel(; grid, closure,
+                            # timestepper = :RungeKutta3,
                             advection = WENO(),
                             coriolis = FPlane(f=0.1),
                             tracers = :b,
@@ -40,6 +42,9 @@ set!(model, b=bᵢ)
 simulation = Simulation(model, Δt=1e-2, stop_time = 10)
 
 wall_time = Ref(time_ns())
+
+b = model.tracers.b
+B = Field(Integral(b))
 
 function progress(sim)
     elapsed = time_ns() - wall_time[]
@@ -63,7 +68,6 @@ simulation.output_writers[:jld2] = JLD2OutputWriter(model, outputs;
                                                     overwrite_existing = true)
 
 b = model.tracers.b
-B = Field(Integral(b))
 simulation.output_writers[:timeseries] = JLD2OutputWriter(model, (; B);
                                                           filename = prefix * "_time_series",
                                                           schedule = IterationInterval(1),
@@ -80,17 +84,21 @@ bt = FieldTimeSeries(filename, "b")
 wt = FieldTimeSeries(filename, "w")
 Nt = length(bt.times)
 
+time_series_filename = prefix * "_time_series.jld2"
+Bt = FieldTimeSeries(time_series_filename, "B")
+
 fig = Figure(resolution=(1200, 600))
 
-slider = Slider(fig[2, 1:2], range=1:Nt, startvalue=1)
+slider = Slider(fig[0, 1:2], range=1:Nt, startvalue=1)
 n = slider.value
 
 B₀ = sum(interior(bt[1], :, 1, :)) / (Nx * Nz)
-titlestr = @lift string("Buoyancy, Δb = ",
-                        @sprintf("%.2e %%", (sum(interior(bt[$n], :, 1, :)) / (Nx * Nz) - B₀) / B₀))
+titlestr = @lift string("Buoyancy, Δb / B₀ = ",
+                        @sprintf("%.2e", (sum(interior(bt[$n], :, 1, :)) / (Nx * Nz) - B₀) / B₀))
 
 axb = Axis(fig[1, 1], title=titlestr)
 axw = Axis(fig[1, 2], title="Vertical velocity")
+axt = Axis(fig[2, 1:2], title="Time series")
 
 bn = @lift interior(bt[$n], :, 1, :)
 wn = @lift interior(wt[$n], :, 1, :)
@@ -99,8 +107,11 @@ wlim = maximum(abs, wt) / 2
 heatmap!(axb, bn, colormap=:balance, colorrange=(-0.5, 0.5))
 heatmap!(axw, wn, colormap=:balance, colorrange=(-wlim, wlim))
 
+ΔB = Bt.data[1, 1, 1, :] .- Bt.data[1, 1, 1, 1]
+lines!(axt, Bt.times, ΔB)
+
 display(fig)
 
-record(fig, "complex_domain_convection.mp4", 1:Nt, framerate=12) do nn
-    n[] = nn
-end
+# record(fig, "complex_domain_convection.mp4", 1:Nt, framerate=12) do nn
+#     n[] = nn
+# end
