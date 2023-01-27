@@ -119,7 +119,9 @@ heatmap!(axc, cn, colormap=:balance, colorrange=(-clim, clim))
 ΔB = Bt.data[1, 1, 1, :] .- Bt.data[1, 1, 1, 1]
 ΔC = Ct.data[1, 1, 1, :] .- Ct.data[1, 1, 1, 1]
 
-lines!(axt, Bt.times, ΔB)
+lines!(axt, Bt.times, ΔB, label="Buoyancy tracer")
+lines!(axt, Bt.times, ΔC, label="Passive tracer")
+
 
 display(fig)
 ##
