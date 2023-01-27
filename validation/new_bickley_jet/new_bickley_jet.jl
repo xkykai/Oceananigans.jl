@@ -48,10 +48,10 @@ vᵢ(x, y, z) = ϵ * ṽ(x, y, ℓ, k)
 cᵢ(x, y, z) = C(y, Ly)
 
 # Note that u, v are only horizontally-divergence-free as resolution -> ∞.
-set!(model, u=uᵢ, v=vᵢ, c=cᵢ)
+set!(model, u=uᵢ, v=vᵢ, c=cᵢ, b=cᵢ)
 
 Δt = 0.2 * 2π / Nx
-stop_time = 10
+stop_time = 200
 
 simulation = Simulation(model; Δt, stop_time)
 
@@ -73,10 +73,25 @@ simulation.output_writers[:jld2] = JLD2OutputWriter(model, outputs;
                                                     schedule = TimeInterval(0.5),
                                                     overwrite_existing = true)
 
+b = model.tracers.b
+B = Field(Integral(b))
+
+tracer_passive = model.tracers.c
+tracer_passive_integral = Field(Integral(c))
+
+simulation.output_writers[:timeseries] = JLD2OutputWriter(model, (B=B, C=tracer_passive_integral);
+                                                         filename = "$(FILE_DIR)/bickley_jet_timeseries",
+                                                         schedule = TimeInterval(0.5),
+                                                         overwrite_existing = true)
+
+
 run!(simulation)
 
 bt = FieldTimeSeries("$(FILE_DIR)/bickley_jet_fields.jld2", "b")
 ct = FieldTimeSeries("$(FILE_DIR)/bickley_jet_fields.jld2", "c")
+
+Bt = FieldTimeSeries("$(FILE_DIR)/bickley_jet_timeseries.jld2", "B")
+Ct = FieldTimeSeries("$(FILE_DIR)/bickley_jet_timeseries.jld2", "C")
 
 Nt = length(bt.times)
 
@@ -101,8 +116,10 @@ clim = maximum(abs, ct) / 2
 heatmap!(axb, bn, colormap=:balance, colorrange=(-0.5, 0.5))
 heatmap!(axc, cn, colormap=:balance, colorrange=(-clim, clim))
 
-# ΔB = Bt.data[1, 1, 1, :] .- Bt.data[1, 1, 1, 1]
-# lines!(axt, Bt.times, ΔB)
+ΔB = Bt.data[1, 1, 1, :] .- Bt.data[1, 1, 1, 1]
+ΔC = Ct.data[1, 1, 1, :] .- Ct.data[1, 1, 1, 1]
+
+lines!(axt, Bt.times, ΔB)
 
 display(fig)
 ##
