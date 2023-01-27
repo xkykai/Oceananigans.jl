@@ -11,7 +11,7 @@ function run_bickley_jet(grid, experiment_name;
                          stop_time = 200,
                          advection = WENO())
 
-    model = NonhydrostaticModel(; grid, advection
+    model = NonhydrostaticModel(; grid, advection,
                                 timestepper = :RungeKutta3,
                                 tracers = :c)
 
