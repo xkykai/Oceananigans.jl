@@ -77,7 +77,7 @@ b = model.tracers.b
 B = Field(Integral(b))
 
 tracer_passive = model.tracers.c
-tracer_passive_integral = Field(Integral(c))
+tracer_passive_integral = Field(Integral(tracer_passive))
 
 simulation.output_writers[:timeseries] = JLD2OutputWriter(model, (B=B, C=tracer_passive_integral);
                                                          filename = "$(FILE_DIR)/bickley_jet_timeseries",
@@ -107,21 +107,32 @@ titlestr = @lift string("Buoyancy, Δb / B₀ = ",
 
 axb = Axis(fig[1, 1], title=titlestr)
 axc = Axis(fig[1, 2], title="Passive tracer")
-axt = Axis(fig[2, 1:2], title="Time series")
+axt = Axis(fig[2, 1:2], title="Volume-integrated time series")
 
 bn = @lift interior(bt[$n], :, :, 1)
 cn = @lift interior(ct[$n], :, :, 1)
 
-clim = maximum(abs, ct) / 2
-heatmap!(axb, bn, colormap=:balance, colorrange=(-0.5, 0.5))
+blim = maximum(abs, bt)
+clim = maximum(abs, ct)
+
+heatmap!(axb, bn, colormap=:balance, colorrange=(-blim, blim))
 heatmap!(axc, cn, colormap=:balance, colorrange=(-clim, clim))
 
 ΔB = Bt.data[1, 1, 1, :] .- Bt.data[1, 1, 1, 1]
 ΔC = Ct.data[1, 1, 1, :] .- Ct.data[1, 1, 1, 1]
 
-lines!(axt, Bt.times, ΔB, label="Buoyancy tracer")
-lines!(axt, Bt.times, ΔC, label="Passive tracer")
+# lines!(axt, Bt.times, ΔB, label="Buoyancy tracer")
+# lines!(axt, Bt.times, ΔC, label="Passive tracer")
+
+lines!(axt, Bt.times, Bt.data[1, 1, 1, :], label="Buoyancy tracer")
+lines!(axt, Bt.times, Ct.data[1, 1, 1, :], label="Passive tracer")
+axislegend()
 
 
 display(fig)
+##
+record(fig, "$(FILE_DIR)/bickley_jet.mp4", 1:Nt, framerate=30) do nn
+    n[] = nn
+end
+
 ##
