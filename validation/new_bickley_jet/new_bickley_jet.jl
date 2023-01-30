@@ -5,8 +5,8 @@ using GLMakie
 
 FILE_DIR = "validation/new_bickley_jet"
 
-Nx = 64
-Ny = 64
+Nx = 128
+Ny = 128
 
 Lx = 4π
 Ly = 4π
@@ -70,7 +70,7 @@ simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(10))
 outputs = merge(model.velocities, model.tracers)
 
 simulation.output_writers[:jld2] = JLD2OutputWriter(model, outputs;
-                                                    filename = "$(FILE_DIR)/bickley_jet_field.jld2",
+                                                    filename = "$(FILE_DIR)/bickley_jet_field_high.jld2",
                                                     schedule = TimeInterval(0.5),
                                                     overwrite_existing = true)
 
@@ -81,18 +81,24 @@ tracer_passive = model.tracers.c
 tracer_passive_integral = Field(Integral(tracer_passive))
 
 simulation.output_writers[:timeseries] = JLD2OutputWriter(model, (B=B, C=tracer_passive_integral);
-                                                         filename = "$(FILE_DIR)/bickley_jet_timeseries",
+                                                         filename = "$(FILE_DIR)/bickley_jet_timeseries_high",
                                                          schedule = TimeInterval(0.5),
                                                          overwrite_existing = true)
 
 
 run!(simulation)
 
-bt = FieldTimeSeries("$(FILE_DIR)/bickley_jet_field.jld2", "b")
-ct = FieldTimeSeries("$(FILE_DIR)/bickley_jet_field.jld2", "c")
+# bt = FieldTimeSeries("$(FILE_DIR)/bickley_jet_field.jld2", "b")
+# ct = FieldTimeSeries("$(FILE_DIR)/bickley_jet_field.jld2", "c")
 
-Bt = FieldTimeSeries("$(FILE_DIR)/bickley_jet_timeseries.jld2", "B")
-Ct = FieldTimeSeries("$(FILE_DIR)/bickley_jet_timeseries.jld2", "C")
+# Bt = FieldTimeSeries("$(FILE_DIR)/bickley_jet_timeseries.jld2", "B")
+# Ct = FieldTimeSeries("$(FILE_DIR)/bickley_jet_timeseries.jld2", "C")
+
+bt = FieldTimeSeries("$(FILE_DIR)/bickley_jet_field_high.jld2", "b")
+ct = FieldTimeSeries("$(FILE_DIR)/bickley_jet_field_high.jld2", "c")
+
+Bt = FieldTimeSeries("$(FILE_DIR)/bickley_jet_timeseries_high.jld2", "B")
+Ct = FieldTimeSeries("$(FILE_DIR)/bickley_jet_timeseries_high.jld2", "C")
 
 Nt = length(bt.times)
 
@@ -122,23 +128,23 @@ heatmap!(axc, cn, colormap=:balance, colorrange=(-clim, clim))
 ΔB = Bt.data[1, 1, 1, :] .- Bt.data[1, 1, 1, 1]
 ΔC = Ct.data[1, 1, 1, :] .- Ct.data[1, 1, 1, 1]
 
-Bt_sum = [sum(interior(bt[i], :, :, 1)) / (Nx * Ny) for i in 1:length(bt.times)]
-Ct_sum = [sum(interior(ct[i], :, :, 1)) / (Nx * Ny) for i in 1:length(ct.times)]
+Bt_sum = [sum(interior(bt[i], :, :, 1)) * Lx * Ly / (Nx * Ny) for i in 1:length(bt.times)]
+Ct_sum = [sum(interior(ct[i], :, :, 1)) * Lx * Ly / (Nx * Ny) for i in 1:length(ct.times)]
 
 # lines!(axt, Bt.times, ΔB, label="Buoyancy tracer")
 # lines!(axt, Bt.times, ΔC, label="Passive tracer")
 
-# lines!(axt, Bt.times, Bt.data[1, 1, 1, :], label="Buoyancy tracer, Field(Integral(b))")
-# lines!(axt, Bt.times, Ct.data[1, 1, 1, :], label="Passive tracer, Field(Integral(c))")
-lines!(axt, Bt.times, Bt_sum, label="Buoyancy tracer, direct sum")
-lines!(axt, Bt.times, Ct_sum, label="Passive tracer, direct sum")
+lines!(axt, Bt.times, Bt.data[1, 1, 1, :], label="Buoyancy tracer, Field(Integral(b))")
+lines!(axt, Bt.times, Ct.data[1, 1, 1, :], label="Passive tracer, Field(Integral(c))")
+# lines!(axt, bt.times, Bt_sum, label="Buoyancy tracer, direct sum")
+# lines!(axt, bt.times, Ct_sum, label="Passive tracer, direct sum")
 
 axislegend()
 
 
 display(fig)
 ##
-record(fig, "$(FILE_DIR)/bickley_jet_direct_sum.mp4", 1:Nt, framerate=30) do nn
+record(fig, "$(FILE_DIR)/bickley_jet_high.mp4", 1:Nt, framerate=30) do nn
     n[] = nn
 end
 
