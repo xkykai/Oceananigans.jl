@@ -5,18 +5,18 @@ using GLMakie
 
 FILE_DIR = "validation/new_bickley_jet"
 
-Nx = 64
-Ny = 64
+Nx = 16
+Ny = 16
 
 Lx = 4π
 Ly = 4π
 
 grid = RectilinearGrid(size = (Nx, Ny, 1), 
-                       halo = (7, 7, 7),
+                       halo = (4, 4, 4),
                        x = (-Lx/2, Lx/2),
                        y = (-Ly/2, Ly/2),
                        z = (0, 1),
-                       topology = (Periodic, Periodic, Bounded)
+                       topology = (Periodic, Bounded, Bounded)
                        )
 
 model = NonhydrostaticModel(;
@@ -116,8 +116,11 @@ C₀ = sum(interior(ct[1], :, :, 1)) * Lx * Ly / (Nx * Ny)
 Bt_sum = [sum(interior(bt[i], :, :, 1)) * Lx * Ly / (Nx * Ny) for i in 1:length(bt.times)]
 Ct_sum = [sum(interior(ct[i], :, :, 1)) * Lx * Ly / (Nx * Ny) for i in 1:length(ct.times)]
 
-b_str = @lift string("Buoyancy, Δb = $(@sprintf("%.2e", (Bt_sum[$n] - B₀)))")
-c_str = @lift string("Passive tracer, Δc = $(@sprintf("%.2e", (Ct_sum[$n] - C₀)))")
+# b_str = @lift string("Buoyancy, Δb = $(@sprintf("%.2e", (Bt_sum[$n] - B₀)))")
+# c_str = @lift string("Passive tracer, Δc = $(@sprintf("%.2e", (Ct_sum[$n] - C₀)))")
+
+b_str = @lift string("Buoyancy, Δb (Integral) = $(@sprintf("%.2e", (Bt[$n][1, 1, 1] - Bt[1][1, 1, 1])))")
+c_str = @lift string("Passive tracer, Δc (Integral) = $(@sprintf("%.2e", (Ct[$n][1, 1, 1] - Ct[1][1, 1, 1])))")
 
 axb = Axis(fig[1, 1], title=b_str)
 axc = Axis(fig[1, 2], title=c_str)
