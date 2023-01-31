@@ -116,11 +116,11 @@ C₀ = sum(interior(ct[1], :, :, 1)) * Lx * Ly / (Nx * Ny)
 Bt_sum = [sum(interior(bt[i], :, :, 1)) * Lx * Ly / (Nx * Ny) for i in 1:length(bt.times)]
 Ct_sum = [sum(interior(ct[i], :, :, 1)) * Lx * Ly / (Nx * Ny) for i in 1:length(ct.times)]
 
-# b_str = @lift string("Buoyancy, Δb = $(@sprintf("%.2e", (Bt_sum[$n] - B₀)))")
-# c_str = @lift string("Passive tracer, Δc = $(@sprintf("%.2e", (Ct_sum[$n] - C₀)))")
+b_str = @lift string("Buoyancy, Δb (direct sum) = $(@sprintf("%.2e", (Bt_sum[$n] - B₀)))")
+c_str = @lift string("Passive tracer, Δc (direct sum) = $(@sprintf("%.2e", (Ct_sum[$n] - C₀)))")
 
-b_str = @lift string("Buoyancy, Δb (Integral) = $(@sprintf("%.2e", (Bt[$n][1, 1, 1] - Bt[1][1, 1, 1])))")
-c_str = @lift string("Passive tracer, Δc (Integral) = $(@sprintf("%.2e", (Ct[$n][1, 1, 1] - Ct[1][1, 1, 1])))")
+# b_str = @lift string("Buoyancy, Δb (Integral) = $(@sprintf("%.2e", (Bt[$n][1, 1, 1] - Bt[1][1, 1, 1])))")
+# c_str = @lift string("Passive tracer, Δc (Integral) = $(@sprintf("%.2e", (Ct[$n][1, 1, 1] - Ct[1][1, 1, 1])))")
 
 axb = Axis(fig[1, 1], title=b_str)
 axc = Axis(fig[1, 2], title=c_str)
@@ -141,18 +141,18 @@ heatmap!(axc, cn, colormap=:balance, colorrange=(-clim, clim))
 # lines!(axt, Bt.times, ΔB, label="Buoyancy tracer")
 # lines!(axt, Bt.times, ΔC, label="Passive tracer")
 
-lines!(axt, Bt.times, Bt.data[1, 1, 1, :], label="Buoyancy tracer, Field(Integral(b))")
-lines!(axt, Bt.times, Ct.data[1, 1, 1, :], label="Passive tracer, Field(Integral(c))")
+# lines!(axt, Bt.times, Bt.data[1, 1, 1, :], label="Buoyancy tracer, Field(Integral(b))")
+# lines!(axt, Bt.times, Ct.data[1, 1, 1, :], label="Passive tracer, Field(Integral(c))")
 
-# lines!(axt, bt.times, Bt_sum, label="Buoyancy tracer, direct sum")
-# lines!(axt, bt.times, Ct_sum, label="Passive tracer, direct sum")
+lines!(axt, bt.times, Bt_sum, label="Buoyancy tracer, direct sum")
+lines!(axt, bt.times, Ct_sum, label="Passive tracer, direct sum")
 
 axislegend()
 
 
 display(fig)
 ##
-record(fig, "$(FILE_DIR)/bickley_jet_nonhydrostatic.mp4", 1:Nt, framerate=30) do nn
+record(fig, "$(FILE_DIR)/bickley_jet_nonhydrostatic_direct_sum.mp4", 1:Nt, framerate=30) do nn
     n[] = nn
 end
 
