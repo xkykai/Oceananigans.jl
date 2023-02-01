@@ -45,12 +45,18 @@ wall_time = Ref(time_ns())
 
 b = model.tracers.b
 B = Field(Integral(b))
+compute!(B)
+B₀ = B[1, 1, 1]
 
 function progress(sim)
     elapsed = time_ns() - wall_time[]
 
-    @info @sprintf("Iter: %d, time: %s, wall time: %s",
-                   iteration(sim), prettytime(sim), prettytime(1e-9 * elapsed))
+    compute!(B)
+    Bₙ = B[1, 1, 1]
+
+    @info @sprintf("Iter: %d, time: %s, wall time: %s, ΔB: %.2e",
+                   iteration(sim), prettytime(sim), prettytime(1e-9 * elapsed),
+                   (Bₙ - B₀) / B₀)
 
     wall_time[] = time_ns()
 
