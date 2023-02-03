@@ -19,10 +19,8 @@ struct ImmersedPoissonSolver{R, G, S}
     # permutation :: P
 end
 
-function ImmersedPoissonSolver(grid; reltol = 0, kw...)
+function ImmersedPoissonSolver(grid; reltol = eps(eltype(grid)), kw...)
     rhs = CenterField(grid)
-
-    @show reltol
 
     pcg_solver = PreconditionedConjugateGradientSolver(compute_laplacian!;
                                                        template_field = rhs,
@@ -66,7 +64,7 @@ function solve_for_pressure!(pressure, solver::ImmersedPoissonSolver, Δt, U★)
 
     wait(device(arch), rhs_event)
 
-    # Solve pressure Poisson equation for pressure, given rhs
+    # Solve pressure Pressure equation for pressure, given rhs
     solve!(pressure, solver.pcg_solver, rhs)
 
     return pressure
