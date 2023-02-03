@@ -68,6 +68,7 @@ simulation.callbacks[:p] = Callback(progress, IterationInterval(100))
 prefix = "complex_domain_convection"
 outputs = merge(model.velocities, model.tracers)
 
+#=
 simulation.output_writers[:jld2] = JLD2OutputWriter(model, outputs;
                                                     filename = prefix * "_fields",
                                                     schedule = TimeInterval(0.1),
@@ -80,6 +81,7 @@ simulation.output_writers[:timeseries] = JLD2OutputWriter(model, (; B);
                                                           overwrite_existing = true)
 
 run!(simulation)
+=#
 
 #####
 ##### Visualize
@@ -88,23 +90,24 @@ run!(simulation)
 filename = prefix * "_fields.jld2"
 bt = FieldTimeSeries(filename, "b")
 wt = FieldTimeSeries(filename, "w")
-Nt = length(bt.times)
+times = bt.times
+Nt = length(times)
 
 time_series_filename = prefix * "_time_series.jld2"
 Bt = FieldTimeSeries(time_series_filename, "B")
 
-fig = Figure(resolution=(1200, 600))
+fig = Figure(resolution=(1200, 1200))
 
 slider = Slider(fig[0, 1:2], range=1:Nt, startvalue=1)
 n = slider.value
 
 B₀ = sum(interior(bt[1], :, 1, :)) / (Nx * Nz)
-titlestr = @lift string("Buoyancy, Δb / B₀ = ",
-                        @sprintf("%.2e", (sum(interior(bt[$n], :, 1, :)) / (Nx * Nz) - B₀) / B₀))
+btitlestr = @lift @sprintf("Buoyancy at t = %.2f", times[$n])
+wtitlestr = @lift @sprintf("Vertical velocity at t = %.2f", times[$n])
 
-axb = Axis(fig[1, 1], title=titlestr)
-axw = Axis(fig[1, 2], title="Vertical velocity")
-axt = Axis(fig[2, 1:2], title="Time series")
+axb = Axis(fig[1, 1], title=btitlestr)
+axw = Axis(fig[1, 2], title=wtitlestr)
+axt = Axis(fig[2, 1:2], xlabel="Time", ylabel="∫b - ∫b(t=0)")
 
 bn = @lift interior(bt[$n], :, 1, :)
 wn = @lift interior(wt[$n], :, 1, :)
@@ -114,10 +117,12 @@ heatmap!(axb, bn, colormap=:balance, colorrange=(-0.5, 0.5))
 heatmap!(axw, wn, colormap=:balance, colorrange=(-wlim, wlim))
 
 ΔB = Bt.data[1, 1, 1, :] .- Bt.data[1, 1, 1, 1]
+t = @lift times[$n]
 lines!(axt, Bt.times, ΔB)
+vlines!(axt, t)
 
 display(fig)
 
-# record(fig, "complex_domain_convection.mp4", 1:Nt, framerate=12) do nn
-#     n[] = nn
-# end
+record(fig, "complex_domain_convection.mp4", 1:Nt, framerate=12) do nn
+    n[] = nn
+end
