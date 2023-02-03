@@ -41,7 +41,7 @@ set!(model, b=bᵢ, c=1)
 ##### Simulation
 #####
 
-simulation = Simulation(model, Δt=2e-2, stop_iteration=30) #stop_time = 10)
+simulation = Simulation(model, Δt=2e-2, stop_iteration=100) #stop_time = 10)
 
 wall_time = Ref(time_ns())
 
