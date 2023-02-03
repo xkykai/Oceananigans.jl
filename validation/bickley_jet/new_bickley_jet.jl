@@ -86,8 +86,8 @@ topology = (Periodic, Bounded, Bounded)
 
 grid = RectilinearGrid(; size = (Nx, Ny, 1), halo, x, y, z, topology)
 
-#simulation = bickley_jet_simulation(grid, "bickley_jet")
-#run!(simulation)
+simulation = bickley_jet_simulation(grid, "bickley_jet")
+run!(simulation)
 
 #####
 ##### Immersed simulation
@@ -106,8 +106,8 @@ underlying_grid = RectilinearGrid(; halo, x, z, topology,
 southern_wall(x, y) = ifelse(y < -Lx/2, 1.1, 0)
 immersed_grid = ImmersedBoundaryGrid(underlying_grid, GridFittedBottom(southern_wall))
 
-#immersed_simulation = bickley_jet_simulation(immersed_grid, "immersed_bickley_jet")
-#run!(immersed_simulation)
+immersed_simulation = bickley_jet_simulation(immersed_grid, "immersed_bickley_jet")
+run!(immersed_simulation)
 
 ct = FieldTimeSeries("immersed_bickley_jet_fields.jld2", "c")
 vt = FieldTimeSeries("immersed_bickley_jet_fields.jld2", "v")
@@ -121,12 +121,12 @@ Ct_not_immersed = FieldTimeSeries("bickley_jet_timeseries.jld2", "C")
 times = ct.times
 Nt = length(times)
 
+##
 #####
 ##### Visualize results
 #####
 
-fig = Figure(resolution=(1200, 1200))
-
+fig = Figure(resolution=(2000, 700))
 
 axc      = Axis(fig[1, 1], title="Passive tracer concentration")
 axz1     = Axis(fig[1, 2], title="Immersed vorticity")
@@ -149,22 +149,25 @@ heatmap!(axc, cn, colormap=:balance, colorrange=(-clim, clim))
 heatmap!(axz1, ζn, colormap=:balance, colorrange=(-ζlim, ζlim))
 
 ζn_not_immersed = @lift interior(ζt_not_immersed[$n], :, :, 1)
-ζlim = maximum(abs, ζt_not_immersed)
 heatmap!(axz2, ζn_not_immersed, colormap=:balance, colorrange=(-ζlim, ζlim))
 
 En = @lift interior(ζt[$n], :, ζjj, 1) .- interior(ζt_not_immersed[$n], :, :, 1)
-Elim = maximum(abs, ζt) / 10
+Elim = ζlim / 10
 heatmap!(axe, En, colormap=:balance, colorrange=(-Elim, Elim))
 
 δn = @lift interior(δt[$n], :, :, 1)
 δlim = 1e-15
 heatmap!(axd, δn, colormap=:balance, colorrange=(-δlim, δlim))
 
-lines!(axt, times, interior(Ct, 1, 1, 1, :))
-lines!(axt, times, interior(Ct_not_immersed, 1, 1, 1, :))
+t = @lift times[$n]
+lines!(axt, times, interior(Ct, 1, 1, 1, :), label="Immersed grid")
+lines!(axt, times, interior(Ct_not_immersed, 1, 1, 1, :), label="Non-immersed grid")
+vlines!(axt, t)
+
+axislegend(axt)
 
 display(fig)
-
-#record(fig, "bickley_jet_direct_sum.mp4", 1:Nt, framerate=30) do nn
-#    n[] = nn
-#end
+##
+record(fig, "bickley_jet.mp4", 1:Nt, framerate=30) do nn
+   n[] = nn
+end
