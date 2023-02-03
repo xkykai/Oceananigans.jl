@@ -22,11 +22,9 @@ grid = RectilinearGrid(size = (Nx, Ny, Nz),
 
 slope(x, y) = x - 1
 grid = ImmersedBoundaryGrid(grid, GridFittedBottom(slope))
-closure = nothing #ScalarDiffusivity(ν=1e-3)
 
 model = NonhydrostaticModel(; grid, closure,
-                            pressure_solver = ImmersedPoissonSolver(grid),
-                            # timestepper = :RungeKutta3,
+                            # pressure_solver = ImmersedPoissonSolver(grid),
                             advection = WENO(),
                             coriolis = FPlane(f=0.1),
                             tracers = (:b, :c),
