@@ -23,8 +23,8 @@ grid = RectilinearGrid(size = (Nx, Ny, Nz),
 slope(x, y) = x - 1
 grid = ImmersedBoundaryGrid(grid, GridFittedBottom(slope))
 
-model = NonhydrostaticModel(; grid, closure,
-                            # pressure_solver = ImmersedPoissonSolver(grid),
+model = NonhydrostaticModel(; grid,
+                            pressure_solver = ImmersedPoissonSolver(grid),
                             advection = WENO(),
                             coriolis = FPlane(f=0.1),
                             tracers = (:b, :c),
@@ -41,7 +41,7 @@ set!(model, b=bᵢ, c=1)
 ##### Simulation
 #####
 
-simulation = Simulation(model, Δt=2e-2, stop_iteration=1e3) #stop_time = 10)
+simulation = Simulation(model, Δt=2e-2, stop_iteration=30) #stop_time = 10)
 
 wall_time = Ref(time_ns())
 
@@ -63,8 +63,8 @@ function progress(sim)
 
     msg = @sprintf("Iter: %d, time: %s, wall time: %s, ΔB: %.3f %%, ΔC: %.3f %%",
                    iteration(sim), prettytime(sim), prettytime(1e-9 * elapsed),
-                   (Bₙ - B₀) / B₀,
-                   (Cₙ - C₀) / C₀)
+                   100 * (Bₙ - B₀) / B₀,
+                   100 * (Cₙ - C₀) / C₀)
 
     pressure_solver = sim.model.pressure_solver
     if sim.model.pressure_solver isa ImmersedPoissonSolver
@@ -83,7 +83,10 @@ simulation.callbacks[:p] = Callback(progress, IterationInterval(1))
 
 solver_type = model.pressure_solver isa ImmersedPoissonSolver ? "ImmersedPoissonSolver" : "FFTBasedPoissonSolver"
 prefix = "complex_domain_convection_" * solver_type
-outputs = merge(model.velocities, model.tracers, (; p=model.pressures.pNHS))
+
+u, v, w = model.velocities
+δ = ∂x(u) + ∂y(v) + ∂z(w)
+outputs = merge(model.velocities, model.tracers, (; p=model.pressures.pNHS, δ))
 
 simulation.output_writers[:jld2] = JLD2OutputWriter(model, outputs;
                                                     filename = prefix * "_fields",
@@ -91,7 +94,6 @@ simulation.output_writers[:jld2] = JLD2OutputWriter(model, outputs;
                                                     schedule = IterationInterval(1),
                                                     overwrite_existing = true)
 
-b = model.tracers.b
 simulation.output_writers[:timeseries] = JLD2OutputWriter(model, (; B, C);
                                                           filename = prefix * "_time_series",
                                                           schedule = IterationInterval(1),
@@ -108,6 +110,7 @@ bt = FieldTimeSeries(filename, "b")
 ct = FieldTimeSeries(filename, "c")
 wt = FieldTimeSeries(filename, "w")
 pt = FieldTimeSeries(filename, "p")
+δt = FieldTimeSeries(filename, "δ")
 times = bt.times
 Nt = length(times)
 
@@ -115,7 +118,7 @@ time_series_filename = prefix * "_time_series.jld2"
 Bt = FieldTimeSeries(time_series_filename, "B")
 Ct = FieldTimeSeries(time_series_filename, "C")
 
-fig = Figure(resolution=(1200, 800))
+fig = Figure(resolution=(1200, 1200))
 
 slider = Slider(fig[0, 1:3], range=1:Nt, startvalue=1)
 n = slider.value
@@ -125,21 +128,26 @@ btitlestr = @lift @sprintf("Buoyancy at t = %.2f", times[$n])
 wtitlestr = @lift @sprintf("Vertical velocity at t = %.2f", times[$n])
 
 axb = Axis(fig[1, 1], title=btitlestr)
-#axw = Axis(fig[1, 2], title=wtitlestr)
-axp = Axis(fig[1, 2], title="Pressure")
+axw = Axis(fig[1, 2], title=wtitlestr)
 axc = Axis(fig[1, 3], title="Passive tracer anomaly")
-axt = Axis(fig[2, 1:3], xlabel="Time", ylabel="Fractional remaining tracer")
+axp = Axis(fig[2, 1], title="Pressure")
+axd = Axis(fig[2, 2], title="Divergence")
+axt = Axis(fig[3, 1:3], xlabel="Time", ylabel="Fractional remaining tracer")
 
 bn = @lift interior(bt[$n], :, 1, :)
 c′n = @lift interior(ct[$n], :, 1, :) .- interior(ct[1], :, 1, :)
 wn = @lift interior(wt[$n], :, 1, :)
 pn = @lift interior(pt[$n], :, 1, :)
+δn = @lift interior(δt[$n], :, 1, :)
 
 wlim = maximum(abs, wt) / 2
 clim = 1e-1
+δlim = 1e-14
+
 heatmap!(axb, bn, colormap=:balance, colorrange=(-0.5, 0.5))
-#heatmap!(axw, wn, colormap=:balance, colorrange=(-wlim, wlim))
+heatmap!(axw, wn, colormap=:balance, colorrange=(-wlim, wlim))
 heatmap!(axp, pn, colormap=:balance)
+heatmap!(axd, δn, colormap=:balance, colorrange=(-δlim, δlim))
 heatmap!(axc, c′n, colormap=:balance, colorrange=(-clim, clim))
 
 ΔB = Bt.data[1, 1, 1, :] .- Bt.data[1, 1, 1, 1]
@@ -152,5 +160,6 @@ vlines!(axt, t)
 display(fig)
 
 record(fig, prefix * ".mp4", 1:Nt, framerate=12) do nn
+    @info string("Plotting frame ", nn, " of ", Nt)
     n[] = nn
 end
