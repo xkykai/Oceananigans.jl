@@ -2,7 +2,6 @@ using Oceananigans
 using GLMakie
 using Printf
 
-
 include("immersed_pressure_solver.jl")
 
 #####
@@ -18,17 +17,23 @@ grid = RectilinearGrid(size = (Nx, Ny, Nz),
                        x = (0, 1),
                        y = (0, 1),
                        z = (-1, 0),
+                       #z = (-0.5, 0),
                        topology = (Bounded, Periodic, Bounded))
 
-slope(x, y) = x - 1
+@info "Created $grid"
+
+slope(x, y) = -0.5 # immersed region occupies k = 1:32
 grid = ImmersedBoundaryGrid(grid, GridFittedBottom(slope))
 
 model = NonhydrostaticModel(; grid,
-                            pressure_solver = ImmersedPoissonSolver(grid),
+                            pressure_solver = ImmersedPoissonSolver(grid, preconditioner=true, reltol=1e-10),
                             advection = WENO(),
                             coriolis = FPlane(f=0.1),
                             tracers = (:b, :c),
                             buoyancy = BuoyancyTracer())
+
+@info "Created $model"
+@info "with pressure solver $(model.pressure_solver)"
 
 # Cold blob
 h = 0.05
@@ -46,12 +51,14 @@ simulation = Simulation(model, Δt=2e-2, stop_iteration=100) #stop_time = 10)
 wall_time = Ref(time_ns())
 
 b, c = model.tracers
+u, v, w = model.velocities
 B = Field(Integral(b))
 C = Field(Integral(c))
 compute!(B)
 compute!(C)
 B₀ = B[1, 1, 1]
 C₀ = C[1, 1, 1]
+δ = ∂x(u) + ∂y(v) + ∂z(w)
 
 function progress(sim)
     elapsed = time_ns() - wall_time[]
@@ -61,10 +68,11 @@ function progress(sim)
     Bₙ = B[1, 1, 1]
     Cₙ = C[1, 1, 1]
 
-    msg = @sprintf("Iter: %d, time: %s, wall time: %s, ΔB: %.3f %%, ΔC: %.3f %%",
+    msg = @sprintf("Iter: %d, time: %s, wall time: %s, ΔB: %.3f %%, ΔC: %.3f %%, max|δ|: %.2e",
                    iteration(sim), prettytime(sim), prettytime(1e-9 * elapsed),
                    100 * (Bₙ - B₀) / B₀,
-                   100 * (Cₙ - C₀) / C₀)
+                   100 * (Cₙ - C₀) / C₀,
+                   maximum(abs, δ))
 
     pressure_solver = sim.model.pressure_solver
     if sim.model.pressure_solver isa ImmersedPoissonSolver
@@ -84,8 +92,6 @@ simulation.callbacks[:p] = Callback(progress, IterationInterval(1))
 solver_type = model.pressure_solver isa ImmersedPoissonSolver ? "ImmersedPoissonSolver" : "FFTBasedPoissonSolver"
 prefix = "complex_domain_convection_" * solver_type
 
-u, v, w = model.velocities
-δ = ∂x(u) + ∂y(v) + ∂z(w)
 outputs = merge(model.velocities, model.tracers, (; p=model.pressures.pNHS, δ))
 
 simulation.output_writers[:jld2] = JLD2OutputWriter(model, outputs;
@@ -142,7 +148,7 @@ pn = @lift interior(pt[$n], :, 1, :)
 
 wlim = maximum(abs, wt) / 2
 clim = 1e-1
-δlim = 1e-14
+δlim = 1e-8
 
 heatmap!(axb, bn, colormap=:balance, colorrange=(-0.5, 0.5))
 heatmap!(axw, wn, colormap=:balance, colorrange=(-wlim, wlim))
@@ -159,7 +165,7 @@ vlines!(axt, t)
 
 display(fig)
 
-record(fig, prefix * ".mp4", 1:Nt, framerate=12) do nn
-    @info string("Plotting frame ", nn, " of ", Nt)
-    n[] = nn
-end
+# record(fig, prefix * ".mp4", 1:Nt, framerate=12) do nn
+#     @info string("Plotting frame ", nn, " of ", Nt)
+#     n[] = nn
+# end
