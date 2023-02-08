@@ -103,13 +103,15 @@ const fac = Face()
     # ∂xᶜᶜᶜ(i, j, k, grid, ∂xᶠᶜᶜ, ϕ) = δxᶜᵃᵃ(i, j, k, grid, ∂xᶠᶜᶜ, ϕ) / Δxᶜᶜᶜ(i, j, k, grid)
     
     # Wrong:
-    #return (∂xᶜᶜᶜ(i, j, k, grid, ∂xᶠᶜᶜ, ϕ) +
+    # return (∂xᶜᶜᶜ(i, j, k, grid, ∂xᶠᶜᶜ, ϕ) +
     #        ∂yᶜᶜᶜ(i, j, k, grid, ∂yᶜᶠᶜ, ϕ) +
     #        ∂zᶜᶜᶜ(i, j, k, grid, ∂zᶜᶜᶠ, ϕ))
 
-    return (δxᶜᵃᵃ(i, j, k, grid, _∂xᶠᶜᶜ, ϕ) / Δxᶠᶜᶜ(i, j, k, grid) +
-            δyᵃᶜᵃ(i, j, k, grid, _∂yᶜᶠᶜ, ϕ) / Δyᶜᶠᶜ(i, j, k, grid) +
-            δzᵃᵃᶜ(i, j, k, grid, _∂zᶜᶜᶠ, ϕ) / Δzᶜᶜᶠ(i, j, k, grid))
+    # return (δxᶜᵃᵃ(i, j, k, grid, _∂xᶠᶜᶜ, ϕ) / Δxᶠᶜᶜ(i, j, k, grid) +
+    #         δyᵃᶜᵃ(i, j, k, grid, _∂yᶜᶠᶜ, ϕ) / Δyᶜᶠᶜ(i, j, k, grid) +
+    #         δzᵃᵃᶜ(i, j, k, grid, _∂zᶜᶜᶠ, ϕ) / Δzᶜᶜᶠ(i, j, k, grid))
+
+    return ∇²ᶜᶜᶜ(i, j, k, grid, ϕ)
 end
 
 @kernel function laplacian!(∇²ϕ, grid, ϕ)

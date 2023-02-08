@@ -147,12 +147,13 @@ pn = @lift interior(pt[$n], :, 1, :)
 δn = @lift interior(δt[$n], :, 1, :)
 
 wlim = maximum(abs, wt) / 2
+plim = maximum(abs, pt) / 2
 clim = 1e-1
 δlim = 1e-8
 
 heatmap!(axb, bn, colormap=:balance, colorrange=(-0.5, 0.5))
 heatmap!(axw, wn, colormap=:balance, colorrange=(-wlim, wlim))
-heatmap!(axp, pn, colormap=:balance)
+heatmap!(axp, pn, colormap=:balance, colorrange=(-plim, plim))
 heatmap!(axd, δn, colormap=:balance, colorrange=(-δlim, δlim))
 heatmap!(axc, c′n, colormap=:balance, colorrange=(-clim, clim))
 
