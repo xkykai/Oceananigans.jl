@@ -1,5 +1,5 @@
 using Oceananigans
-using GLMakie
+# using GLMakie
 using Printf
 
 include("immersed_pressure_solver.jl")
