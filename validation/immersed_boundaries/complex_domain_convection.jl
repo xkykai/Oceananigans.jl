@@ -58,8 +58,8 @@ B = Field(Integral(b))
 C = Field(Integral(c))
 compute!(B)
 compute!(C)
-B₀ = B[1, 1, 1]
-C₀ = C[1, 1, 1]
+# B₀ = B[1, 1, 1]
+# C₀ = C[1, 1, 1]
 δ = ∂x(u) + ∂y(v) + ∂z(w)
 
 function progress(sim)
@@ -67,14 +67,20 @@ function progress(sim)
 
     compute!(B)
     compute!(C)
-    Bₙ = B[1, 1, 1]
-    Cₙ = C[1, 1, 1]
+    # Bₙ = B[1, 1, 1]
+    # Cₙ = C[1, 1, 1]
 
-    msg = @sprintf("Iter: %d, time: %s, wall time: %s, ΔB: %.3f %%, ΔC: %.3f %%, max|δ|: %.2e",
-                   iteration(sim), prettytime(sim), prettytime(1e-9 * elapsed),
-                   100 * (Bₙ - B₀) / B₀,
-                   100 * (Cₙ - C₀) / C₀,
-                   maximum(abs, δ))
+    # msg = @sprintf("Iter: %d, time: %s, wall time: %s, ΔB: %.3f %%, ΔC: %.3f %%, max|δ|: %.2e",
+    #                iteration(sim), prettytime(sim), prettytime(1e-9 * elapsed),
+    #                100 * (Bₙ - B₀) / B₀,
+    #                100 * (Cₙ - C₀) / C₀,
+    #                maximum(abs, δ))
+
+    msg = @sprintf("Iter: %d, time: %s, wall time: %s, max|B|: %.3f %%, max|C|: %.3f %%, max|δ|: %.2e",
+                    iteration(sim), prettytime(sim), prettytime(1e-9 * elapsed),
+                    maximum(abs, B),
+                    maximum(abs, C),
+                    maximum(abs, δ))
 
     pressure_solver = sim.model.pressure_solver
     if sim.model.pressure_solver isa ImmersedPoissonSolver
