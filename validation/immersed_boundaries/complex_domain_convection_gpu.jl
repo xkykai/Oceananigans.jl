@@ -88,18 +88,18 @@ solver_type = model.pressure_solver isa ImmersedPoissonSolver ? "ImmersedPoisson
 # solver_type = "FFTBasedPoissonSolver"
 prefix = "complex_domain_convection_" * solver_type
 
-outputs = merge(model.velocities, model.tracers, (; p=model.pressures.pNHS, δ))
+# outputs = merge(model.velocities, model.tracers, (; p=model.pressures.pNHS, δ))
 
-simulation.output_writers[:jld2] = JLD2OutputWriter(model, outputs;
-                                                    filename = prefix * "_fields",
-                                                   # schedule = TimeInterval(0.1),
-                                                    schedule = IterationInterval(1),
-                                                    overwrite_existing = true)
+# simulation.output_writers[:jld2] = JLD2OutputWriter(model, outputs;
+#                                                     filename = prefix * "_fields",
+#                                                    # schedule = TimeInterval(0.1),
+#                                                     schedule = IterationInterval(1),
+#                                                     overwrite_existing = true)
 
-simulation.output_writers[:timeseries] = JLD2OutputWriter(model, (; B, C);
-                                                          filename = prefix * "_time_series",
-                                                          schedule = IterationInterval(1),
-                                                          overwrite_existing = true)
+# simulation.output_writers[:timeseries] = JLD2OutputWriter(model, (; B, C);
+#                                                           filename = prefix * "_time_series",
+#                                                           schedule = IterationInterval(1),
+#                                                           overwrite_existing = true)
 
 run!(simulation)
 
