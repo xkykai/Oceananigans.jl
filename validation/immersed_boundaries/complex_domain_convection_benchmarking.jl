@@ -44,7 +44,7 @@ function setup_immersed(N, stop_iteration)
 
     initial_conditions!(model)
 
-    simulation = setup_simulation(model, 2e-2 * 64 / grid.Nz, stop_iteration)
+    simulation = setup_simulation(model, 2e-2 * 64 / 2 / grid.Nz, stop_iteration)
     return simulation
 end
 
@@ -59,7 +59,7 @@ function setup_FFT(N, stop_iteration)
 
     initial_conditions!(model)
 
-    simulation = setup_simulation(model, 2e-2 * 64 / grid.Nz, stop_iteration)
+    simulation = setup_simulation(model, 2e-2 * 64 / 2 / grid.Nz, stop_iteration)
     return simulation
 end
 
