@@ -70,7 +70,7 @@ suite = BenchmarkGroup()
 suite["FFTBasedPoissonSolver"] = BenchmarkGroup()
 suite["ImmersedPoissonSolver"] = BenchmarkGroup()
 
-Ns = [32, 64, 128, 256, 512]
+Ns = [32, 64, 128, 256]
 
 for N in Ns
     suite["FFTBasedPoissonSolver"]["$N"] = @benchmarkable run!(simulation) setup=(simulation=setup_FFT($N, 1000)) seconds=7200
