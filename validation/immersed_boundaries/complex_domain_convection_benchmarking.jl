@@ -1,10 +1,9 @@
 using Oceananigans
 using Printf
-using BenchmarkTools
 using JLD2
-using CairoMakie
-using BenchmarkPlots
 using NVTX
+# using BenchmarkTools
+# using CairoMakie
 
 include("immersed_pressure_solver.jl")
 
