@@ -11,7 +11,7 @@ include("immersed_pressure_solver.jl")
 function setup_grid(N)
     grid = RectilinearGrid(GPU(), Float64,
                         size = (N, N, N), 
-                        halo = (4, 4, 4),
+                        halo = (5, 5, 5),
                         x = (0, 1),
                         y = (0, 1),
                         z = (0, 1),
@@ -55,7 +55,7 @@ function setup_FFT(N)
     grid = setup_grid(N)
 
     model = NonhydrostaticModel(; grid,
-                                advection = WENO(),
+                                advection = WENO(order=7),
                                 coriolis = FPlane(f=0.1),
                                 tracers = (:b),
                                 buoyancy = BuoyancyTracer())
@@ -84,7 +84,7 @@ for N in Ns
         NVTX.@range "FFT timestep N $N" begin
             time_step!(modelFFT, Δt)
         end
-        NVTX.@range "FFT timestep N $N" begin
+        NVTX.@range "Immersed timestep N $N" begin
             time_step!(modelImmersed, Δt)
         end
         @info "PCG iteration = $(modelImmersed.pressure_solver.pcg_solver.iteration)"
