@@ -2,8 +2,6 @@ using Oceananigans
 using Printf
 using JLD2
 using NVTX
-# using BenchmarkTools
-# using CairoMakie
 
 include("immersed_pressure_solver.jl")
 
@@ -45,8 +43,20 @@ function setup_immersed(N)
                                 buoyancy = BuoyancyTracer())
 
     initial_conditions!(model)
+    return model
+end
 
-    # simulation = setup_simulation(model, 2e-2 * 64 / 2 / grid.Nz, stop_iteration)
+function setup_immersed_noprec(N)
+    grid = setup_grid(N)
+
+    model = NonhydrostaticModel(; grid,
+                                pressure_solver = ImmersedPoissonSolver(grid, preconditioner=false, reltol=1e-7),
+                                advection = WENO(order=7),
+                                coriolis = FPlane(f=0.1),
+                                tracers = (:b),
+                                buoyancy = BuoyancyTracer())
+
+    initial_conditions!(model)
     return model
 end
 
@@ -60,33 +70,38 @@ function setup_FFT(N)
                                 buoyancy = BuoyancyTracer())
 
     initial_conditions!(model)
-
-    # simulation = setup_simulation(model, 2e-2 * 64 / 2 / grid.Nz, stop_iteration)
-    # time_step!(model, 0.1)
-    
     return model
 end
 
 Ns = [32, 64, 128, 256]
-# Ns = [32, 64, 128]
 
 for N in Ns
     Δt = 2e-2 * 64 / 2 / N
-    modelFFT = setup_FFT(N)
-    modelImmersed = setup_immersed(N)
+    model_FFT = setup_FFT(N)
+    model_immersed = setup_immersed(N)
+    model_immersed_noprec = setup_immersed_noprec(N)
+
     for step in 1:3
-        time_step!(modelFFT, Δt)
-        time_step!(modelImmersed, Δt)
+        time_step!(model_FFT, Δt)
+        time_step!(model_immersed, Δt)
+        time_step!(model_immersed_noprec, Δt)
     end
 
     for step in 1:20
-        NVTX.@range "FFT timestep N $N" begin
-            time_step!(modelFFT, Δt)
+        NVTX.@range "FFT timestep, N $N" begin
+            time_step!(model_FFT, Δt)
         end
-        NVTX.@range "Immersed timestep N $N" begin
-            time_step!(modelImmersed, Δt)
+
+        NVTX.@range "Immersed timestep, N $N" begin
+            time_step!(model_immersed, Δt)
         end
-        @info "PCG iteration = $(modelImmersed.pressure_solver.pcg_solver.iteration)"
+
+        NVTX.@range "Immersed timestep, no preconditioner N $N" begin
+            time_step!(model_immersed_noprec, Δt)
+        end
+
+        @info "PCG iteration (preconditioner) = $(model_immersed.pressure_solver.pcg_solver.iteration)"
+        @info "PCG iteration (no preconditioner) = $(model_immersed_noprec.pressure_solver.pcg_solver.iteration)"
     end
 end
 
