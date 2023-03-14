@@ -25,7 +25,7 @@ function initial_conditions!(model)
     h = 0.05
     x₀ = 0.5
     y₀ = 0.5
-    z₀ = 0.75
+    z₀ = 0.55
     bᵢ(x, y, z) = - exp(-((x - x₀)^2 + (y - y₀)^2 + (z - z₀)^2) / 2h^2)
     set!(model, b=bᵢ)
 end
