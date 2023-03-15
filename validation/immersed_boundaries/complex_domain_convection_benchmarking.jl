@@ -77,20 +77,20 @@ Ns = [32, 64, 128, 256]
 
 for N in Ns
     Δt = 2e-2 * 64 / 2 / N
-    model_FFT = setup_FFT(N)
+    # model_FFT = setup_FFT(N)
     model_immersed = setup_immersed(N)
     model_immersed_noprec = setup_immersed_noprec(N)
 
     for step in 1:3
-        time_step!(model_FFT, Δt)
+        # time_step!(model_FFT, Δt)
         time_step!(model_immersed, Δt)
         time_step!(model_immersed_noprec, Δt)
     end
 
     for step in 1:20
-        NVTX.@range "FFT timestep, N $N" begin
-            time_step!(model_FFT, Δt)
-        end
+        # NVTX.@range "FFT timestep, N $N" begin
+        #     time_step!(model_FFT, Δt)
+        # end
 
         NVTX.@range "Immersed timestep, N $N" begin
             time_step!(model_immersed, Δt)
