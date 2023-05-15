@@ -27,7 +27,9 @@ grid = ImmersedBoundaryGrid(grid, GridFittedBottom(slope))
                        
 @info "Created $grid"
 model = NonhydrostaticModel(; grid,
-                            pressure_solver = ImmersedPoissonSolver(grid, preconditioner=true, reltol=1e-10),
+                            pressure_solver = ImmersedPoissonSolver(grid, preconditioner="FFT", reltol=1e-8),
+                            # pressure_solver = ImmersedPoissonSolver(grid, preconditioner=MITgcmPreconditioner(), reltol=1e-8),
+                            # pressure_solver = ImmersedPoissonSolver(grid, preconditioner=nothing, reltol=1e-8),
                             advection = WENO(),
                             coriolis = FPlane(f=0.1),
                             tracers = (:b, :c),
