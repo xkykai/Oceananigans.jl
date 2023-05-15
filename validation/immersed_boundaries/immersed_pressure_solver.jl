@@ -15,6 +15,7 @@ using KernelAbstractions: @kernel, @index
 import Oceananigans.Solvers: precondition!
 import Oceananigans.Models.NonhydrostaticModels: solve_for_pressure!
 
+# include("mitgcm_preconditioner.jl")
 struct ImmersedPoissonSolver{R, G, S}
     rhs :: R
     grid :: G
@@ -42,16 +43,14 @@ function precondition!(p, solver::FFTBasedPoissonSolver, rhs, args...)
 end
 
 function ImmersedPoissonSolver(grid;
-                               preconditioner = true,
+                               preconditioner = nothing,
                                reltol = eps(eltype(grid)),
                                abstol = 0,
                                kw...)
 
-    if preconditioner
+    if preconditioner == "FFT"
         arch = architecture(grid)
         preconditioner = PressureSolver(arch, grid)
-    else
-        preconditioner = nothing
     end
 
     rhs = CenterField(grid)
@@ -111,4 +110,49 @@ function solve_for_pressure!(pressure, solver::ImmersedPoissonSolver, Δt, U★)
     solve!(pressure, solver.pcg_solver, rhs)
 
     return pressure
+end
+
+struct MITgcmPreconditioner end
+
+@inline function precondition!(P_r, ::MITgcmPreconditioner, r, args...)
+    grid = r.grid
+    arch = architecture(P_r)
+
+    fill_halo_regions!(r)
+
+    event = launch!(arch, grid, :xyz, _MITgcm_precondition!,
+                    P_r, grid, r,
+                    dependencies = device_event(arch))
+
+    wait(device(arch), event)
+
+    return P_r
+end
+
+# Kernels that calculate coefficients for the preconditioner
+@inline Ax⁻(i, j, k, grid) = @inbounds Axᶠᶜᶜ(i, j, k, grid) / Δxᶠᶜᶜ(i, j, k, grid) / Vᶜᶜᶜ(i, j, k, grid)
+@inline Ay⁻(i, j, k, grid) = @inbounds Ayᶠᶜᶜ(i, j, k, grid) / Δyᶠᶜᶜ(i, j, k, grid) / Vᶜᶜᶜ(i, j, k, grid)
+@inline Az⁻(i, j, k, grid) = @inbounds Azᶠᶜᶜ(i, j, k, grid) / Δzᶠᶜᶜ(i, j, k, grid) / Vᶜᶜᶜ(i, j, k, grid)
+@inline Ax⁺(i, j, k, grid) = @inbounds Axᶠᶜᶜ(i+1, j, k, grid) / Δxᶠᶜᶜ(i+1, j, k, grid) / Vᶜᶜᶜ(i, j, k, grid)
+@inline Ay⁺(i, j, k, grid) = @inbounds Ayᶠᶜᶜ(i, j+1, k, grid) / Δyᶠᶜᶜ(i, j+1, k, grid) / Vᶜᶜᶜ(i, j, k, grid)
+@inline Az⁺(i, j, k, grid) = @inbounds Azᶠᶜᶜ(i, j, k+1, grid) / Δzᶠᶜᶜ(i, j, k+1, grid) / Vᶜᶜᶜ(i, j, k, grid)
+
+@inline Ac(i, j, k, grid) = - (Ax⁻(i, j, k, grid) +
+                               Ax⁺(i, j, k, grid) +
+                               Ay⁻(i, j, k, grid) +
+                               Ay⁺(i, j, k, grid) +
+                               Az⁻(i, j, k, grid) +
+                               Az⁺(i, j, k, grid))
+
+@inline heuristic_inverse_times_residuals(i, j, k, r, grid) =
+    @inbounds 1 / Ac(i, j, k, grid) * (r[i, j, k] - 2 * Ax⁻(i, j, k, grid) / (Ac(i, j, k, grid) + Ac(i-1, j, k, grid)) * r[i-1, j, k] -
+                                                    2 * Ax⁺(i, j, k, grid) / (Ac(i, j, k, grid) + Ac(i+1, j, k, grid)) * r[i+1, j, k] -
+                                                    2 * Ay⁻(i, j, k, grid) / (Ac(i, j, k, grid) + Ac(i, j-1, k, grid)) * r[i, j-1, k] -
+                                                    2 * Ay⁺(i, j, k, grid) / (Ac(i, j, k, grid) + Ac(i, j+1, k, grid)) * r[i, j+1, k] -
+                                                    2 * Az⁻(i, j, k, grid) / (Ac(i, j, k, grid) + Ac(i, j, k-1, grid)) * r[i, j, k-1] -
+                                                    2 * Az⁺(i, j, k, grid) / (Ac(i, j, k, grid) + Ac(i, j, k+1, grid)) * r[i, j, k+1])
+
+@kernel function _MITgcm_precondition!(P_r, grid, r)
+    i, j, k = @index(Global, NTuple)
+    @inbounds P_r[i, j, k] = heuristic_inverse_times_residuals(i, j, k, r, grid)
 end
