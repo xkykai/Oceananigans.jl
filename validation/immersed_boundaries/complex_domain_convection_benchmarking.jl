@@ -32,11 +32,11 @@ function setup_simulation(model, Δt, stop_iteration)
     return Simulation(model, Δt=Δt, stop_iteration=stop_iteration)
 end
 
-function setup_immersed(N)
+function setup_immersed_FFTprec(N)
     grid = setup_grid(N)
 
     model = NonhydrostaticModel(; grid,
-                                pressure_solver = ImmersedPoissonSolver(grid, preconditioner=true, reltol=1e-7),
+                                pressure_solver = ImmersedPoissonSolver(grid, preconditioner="FFT", reltol=1e-7),
                                 advection = WENO(order=7),
                                 coriolis = FPlane(f=0.1),
                                 tracers = (:b),
@@ -50,7 +50,21 @@ function setup_immersed_noprec(N)
     grid = setup_grid(N)
 
     model = NonhydrostaticModel(; grid,
-                                pressure_solver = ImmersedPoissonSolver(grid, preconditioner=false, reltol=1e-7),
+                                pressure_solver = ImmersedPoissonSolver(grid, preconditioner=nothing, reltol=1e-7),
+                                advection = WENO(order=7),
+                                coriolis = FPlane(f=0.1),
+                                tracers = (:b),
+                                buoyancy = BuoyancyTracer())
+
+    initial_conditions!(model)
+    return model
+end
+
+function setup_immersed_MITgcmprec(N)
+    grid = setup_grid(N)
+
+    model = NonhydrostaticModel(; grid,
+                                pressure_solver = ImmersedPoissonSolver(grid, preconditioner=nothing, reltol=1e-7),
                                 advection = WENO(order=7),
                                 coriolis = FPlane(f=0.1),
                                 tracers = (:b),
@@ -78,13 +92,15 @@ Ns = [32, 64, 128, 256]
 for N in Ns
     Δt = 2e-2 * 64 / 2 / N
     # model_FFT = setup_FFT(N)
-    model_immersed = setup_immersed(N)
-    model_immersed_noprec = setup_immersed_noprec(N)
+    model_immersed_FFTprec = setup_immersed_FFTprec(N)
+    # model_immersed_noprec = setup_immersed_noprec(N)
+    model_immersed_MITgcmprec = setup_immersed_MITgcmprec(N)
 
     for step in 1:3
         # time_step!(model_FFT, Δt)
-        time_step!(model_immersed, Δt)
-        time_step!(model_immersed_noprec, Δt)
+        time_step!(model_immersed_FFTprec, Δt)
+        # time_step!(model_immersed_noprec, Δt)
+        time_step!(model_immersed_MITgcmprec, Δt)
     end
 
     for step in 1:20
@@ -92,16 +108,21 @@ for N in Ns
         #     time_step!(model_FFT, Δt)
         # end
 
-        NVTX.@range "Immersed timestep, N $N" begin
-            time_step!(model_immersed, Δt)
+        NVTX.@range "Immersed timestep, FFT preconditioner N $N" begin
+            time_step!(model_immersed_FFTprec, Δt)
         end
 
-        NVTX.@range "Immersed timestep, no preconditioner N $N" begin
-            time_step!(model_immersed_noprec, Δt)
+        # NVTX.@range "Immersed timestep, no preconditioner N $N" begin
+        #     time_step!(model_immersed_noprec, Δt)
+        # end
+
+        NVTX.@range "Immersed timestep, MITgcm preconditioner N $N" begin
+            time_step!(model_immersed_MITgcmprec, Δt)
         end
 
-        @info "PCG iteration (preconditioner) = $(model_immersed.pressure_solver.pcg_solver.iteration)"
-        @info "PCG iteration (no preconditioner) = $(model_immersed_noprec.pressure_solver.pcg_solver.iteration)"
+        @info "PCG iteration (FFT preconditioner) = $(model_immersed_FFTprec.pressure_solver.pcg_solver.iteration)"
+        # @info "PCG iteration (no preconditioner) = $(model_immersed_noprec.pressure_solver.pcg_solver.iteration)"
+        @info "PCG iteration (MITgcm preconditioner) = $(model_immersed_MITgcmprec.pressure_solver.pcg_solver.iteration)"
     end
 end
 
