@@ -89,18 +89,35 @@ end
 
 Ns = [32, 64, 128, 256]
 
+@info "Benchmarking FFT solver"
+for N in Ns
+    Δt = 2e-2 * 64 / 2 / N
+    model = setup_FFT(N)
+
+    for step in 1:3
+        time_step!(model, Δt)
+    end
+
+    for step in 1:20
+        NVTX.@range "FFT timestep, N $N" begin
+            time_step!(model, Δt)
+        end
+    end
+end
+
+@info "Benchmarking FFT preconditioner"
 for N in Ns
     Δt = 2e-2 * 64 / 2 / N
     # model_FFT = setup_FFT(N)
-    model_immersed_FFTprec = setup_immersed_FFTprec(N)
+    model = setup_immersed_FFTprec(N)
     # model_immersed_noprec = setup_immersed_noprec(N)
-    model_immersed_MITgcmprec = setup_immersed_MITgcmprec(N)
+    # model_immersed_MITgcmprec = setup_immersed_MITgcmprec(N)
 
     for step in 1:3
         # time_step!(model_FFT, Δt)
-        time_step!(model_immersed_FFTprec, Δt)
+        time_step!(model, Δt)
         # time_step!(model_immersed_noprec, Δt)
-        time_step!(model_immersed_MITgcmprec, Δt)
+        # time_step!(model_immersed_MITgcmprec, Δt)
     end
 
     for step in 1:20
@@ -109,20 +126,56 @@ for N in Ns
         # end
 
         NVTX.@range "Immersed timestep, FFT preconditioner N $N" begin
-            time_step!(model_immersed_FFTprec, Δt)
+            time_step!(model, Δt)
         end
 
         # NVTX.@range "Immersed timestep, no preconditioner N $N" begin
         #     time_step!(model_immersed_noprec, Δt)
         # end
 
-        NVTX.@range "Immersed timestep, MITgcm preconditioner N $N" begin
-            time_step!(model_immersed_MITgcmprec, Δt)
+        # NVTX.@range "Immersed timestep, MITgcm preconditioner N $N" begin
+        #     time_step!(model_immersed_MITgcmprec, Δt)
+        # end
+
+        @info "PCG iteration (FFT preconditioner) = $(model.pressure_solver.pcg_solver.iteration)"
+        # @info "PCG iteration (no preconditioner) = $(model_immersed_noprec.pressure_solver.pcg_solver.iteration)"
+        # @info "PCG iteration (MITgcm preconditioner) = $(model_immersed_MITgcmprec.pressure_solver.pcg_solver.iteration)"
+    end
+end
+
+@info "Benchmarking no preconditioner"
+for N in Ns
+    Δt = 2e-2 * 64 / 2 / N
+    model = setup_immersed_noprec(N)
+
+    for step in 1:3
+        time_step!(model, Δt)
+    end
+
+    for step in 1:20
+        NVTX.@range "Immersed timestep, no preconditioner N $N" begin
+            time_step!(model, Δt)
         end
 
-        @info "PCG iteration (FFT preconditioner) = $(model_immersed_FFTprec.pressure_solver.pcg_solver.iteration)"
-        # @info "PCG iteration (no preconditioner) = $(model_immersed_noprec.pressure_solver.pcg_solver.iteration)"
-        @info "PCG iteration (MITgcm preconditioner) = $(model_immersed_MITgcmprec.pressure_solver.pcg_solver.iteration)"
+        @info "PCG iteration (no preconditioner) = $(model.pressure_solver.pcg_solver.iteration)"
+    end
+end
+
+@info "Benchmarking MITgcm preconditioner"
+for N in Ns
+    Δt = 2e-2 * 64 / 2 / N
+    model = setup_immersed_MITgcmprec(N)
+
+    for step in 1:3
+        time_step!(model, Δt)
+    end
+
+    for step in 1:20
+        NVTX.@range "Immersed timestep, MITgcm preconditioner N $N" begin
+            time_step!(model, Δt)
+        end
+
+        @info "PCG iteration (MITgcm preconditioner) = $(model.pressure_solver.pcg_solver.iteration)"
     end
 end
 
