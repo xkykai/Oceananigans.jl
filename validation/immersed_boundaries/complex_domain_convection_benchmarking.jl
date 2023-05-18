@@ -2,6 +2,7 @@ using Oceananigans
 using Printf
 using JLD2
 using NVTX
+using Statistics
 
 include("immersed_pressure_solver.jl")
 
@@ -64,7 +65,7 @@ function setup_immersed_MITgcmprec(N)
     grid = setup_grid(N)
 
     model = NonhydrostaticModel(; grid,
-                                pressure_solver = ImmersedPoissonSolver(grid, preconditioner=nothing, reltol=1e-7),
+                                pressure_solver = ImmersedPoissonSolver(grid, preconditioner=MITgcmPreconditioner(), reltol=1e-7),
                                 advection = WENO(order=7),
                                 coriolis = FPlane(f=0.1),
                                 tracers = (:b),
@@ -120,6 +121,8 @@ for N in Ns
         # time_step!(model_immersed_MITgcmprec, Δt)
     end
 
+    PCG_iters_FFTprec = zeros(20)
+
     for step in 1:20
         # NVTX.@range "FFT timestep, N $N" begin
         #     time_step!(model_FFT, Δt)
@@ -140,7 +143,9 @@ for N in Ns
         @info "PCG iteration (FFT preconditioner) = $(model.pressure_solver.pcg_solver.iteration)"
         # @info "PCG iteration (no preconditioner) = $(model_immersed_noprec.pressure_solver.pcg_solver.iteration)"
         # @info "PCG iteration (MITgcm preconditioner) = $(model_immersed_MITgcmprec.pressure_solver.pcg_solver.iteration)"
+        PCG_iters_FFTprec[step] = model.pressure_solver.pcg_solver.iteration
     end
+    @info "Mean PCG iteration (FFT preconditioner) = $(mean(PCG_iters_FFTprec))"
 end
 
 @info "Benchmarking no preconditioner"
@@ -151,6 +156,7 @@ for N in Ns
     for step in 1:3
         time_step!(model, Δt)
     end
+    PCG_iters_noprec = zeros(20)
 
     for step in 1:20
         NVTX.@range "Immersed timestep, no preconditioner N $N" begin
@@ -158,7 +164,9 @@ for N in Ns
         end
 
         @info "PCG iteration (no preconditioner) = $(model.pressure_solver.pcg_solver.iteration)"
+        PCG_iters_noprec[step] = model.pressure_solver.pcg_solver.iteration
     end
+    @info "Mean PCG iteration (no preconditioner) = $(mean(PCG_iters_noprec))"
 end
 
 @info "Benchmarking MITgcm preconditioner"
@@ -169,6 +177,7 @@ for N in Ns
     for step in 1:3
         time_step!(model, Δt)
     end
+    PCG_iters_MITgcmprec = zeros(20)
 
     for step in 1:20
         NVTX.@range "Immersed timestep, MITgcm preconditioner N $N" begin
@@ -176,7 +185,9 @@ for N in Ns
         end
 
         @info "PCG iteration (MITgcm preconditioner) = $(model.pressure_solver.pcg_solver.iteration)"
+        PCG_iters_MITgcmprec[step] = model.pressure_solver.pcg_solver.iteration
     end
+    @info "Mean PCG iteration (MITgcm preconditioner) = $(mean(PCG_iters_MITgcmprec))"
 end
 
 # for N in Ns
