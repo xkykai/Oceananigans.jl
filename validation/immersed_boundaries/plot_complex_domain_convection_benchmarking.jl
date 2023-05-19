@@ -6,8 +6,6 @@ df = CSV.read("benchmark_FFT_FFTprec_noprec_MITgcmprec_report/benchmark_FFT_FFTp
 @info df.Range
 @info propertynames(df)
 
-df["Med (ns)", 20]
-
 Ns = [32, 64, 128, 256]
 
 FFTprec_ts = [df[findfirst(df.Range .== "Main:Immersed timestep, FFT preconditioner N $N"), Symbol("Med (ns)")] for N in Ns] ./ 1e9
@@ -25,9 +23,9 @@ axislegend(ax_t, position=:lt)
 display(fig)
 # save("sloped_convection_benchmarks.png", fig, px_per_unit=4)
 
-pcg_iter_FFTprec = [12, 12, 13, 13]
-pcg_iter_MITgcmprec = [174, 350, 700, 1360]
-pcg_iter_noprec = [175, 351, 700, 1360]
+pcg_iter_FFTprec = [12, 12.1, 12.6, 13.25]
+pcg_iter_MITgcmprec = [89, 176.4, 349.75, 685.6]
+pcg_iter_noprec = [174.55, 349.55, 698.05, 1371.8]
 
 fig = Figure()
 ax_iter = Axis(fig[1, 1], xlabel="N", ylabel="Approximate PCG iterations per timestep", yscale=log10, xscale=log2, title="Sloped convection, GPU, 3D setup (N³ grid points)")
