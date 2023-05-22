@@ -57,3 +57,8 @@ docs/src/generated
 .logamgx
 
 statprof
+
+# Complex Domain Convection stuff
+*.csv
+*.nsys-rep
+*.sqlite
