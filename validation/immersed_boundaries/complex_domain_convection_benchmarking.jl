@@ -88,7 +88,7 @@ function setup_FFT(N)
     return model
 end
 
-Ns = [32, 64, 128, 160, 192, 224, 256, 320]
+Ns = [32, 64, 128, 160, 192, 224, 256]
 
 @info "Benchmarking FFT solver"
 for N in Ns
