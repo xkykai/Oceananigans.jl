@@ -91,7 +91,7 @@ function setup_FFT(N)
     return model
 end
 
-Ns = [32, 64, 128, 256]
+Ns = [32, 64, 128, 160, 192, 224, 256]
 
 @info "Benchmarking FFT solver"
 for N in Ns
@@ -179,7 +179,6 @@ for (i, N) in pairs(Ns)
 end
 
 @info "Benchmarking MITgcm preconditioner"
-
 PCG_N_MITgcmprec = zeros(length(Ns))
 
 for (i, N) in pairs(Ns)
@@ -203,7 +202,7 @@ for (i, N) in pairs(Ns)
     PCG_N_MITgcmprec[i] = mean(PCG_iters_MITgcmprec)
 end
 
-jldsave("PCG_N_iters.jld2"; FFTprec=PCG_N_FFTprec, noprec=PCG_N_noprec, MITgcmprec=PCG_N_MITgcmprec)
+jldsave("staircase_PCG_N_iters.jld2"; FFTprec=PCG_N_FFTprec, noprec=PCG_N_noprec, MITgcmprec=PCG_N_MITgcmprec)
 
 # for N in Ns
 #     suite["FFTBasedPoissonSolver"]["$N"] = @benchmarkable run!(simulation) setup=(simulation=setup_FFT($N, 500)) seconds=1200
