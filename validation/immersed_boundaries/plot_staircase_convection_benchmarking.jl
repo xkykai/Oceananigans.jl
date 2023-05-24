@@ -3,12 +3,13 @@ using CSV
 using DataFrames
 using JLD2
 
-df = CSV.read("benchmark_staircase_FFT_FFTprec_noprec_MITgcmprec_report/benchmark_staircase_FFT_FFTprec_noprec_MITgcmprec_report_nvtxsum.csv", DataFrame)
+DATA_DIR = "benchmark_moreNs_staircase_FFT_FFTprec_noprec_MITgcmprec"
+df = CSV.read(joinpath(DATA_DIR, "$(DATA_DIR)_report_nvtxsum.csv"), DataFrame)
 @info df.Range
 @info propertynames(df)
 
-Ns = [32, 64, 128, 256]
-Ns_ax = ([32, 64, 128, 256].^3) .* log.([32, 64, 128, 256])
+Ns = [32, 64, 128, 160, 192, 224, 256]
+Ns_ax = (Ns.^3) .* log.(Ns)
 
 FFTprec_ts = [df[findfirst(df.Range .== "Main:Immersed timestep, FFT preconditioner N $N"), Symbol("Med (ns)")] for N in Ns] ./ 1e9
 MITgcmprec_ts = [df[findfirst(df.Range .== "Main:Immersed timestep, MITgcm preconditioner N $N"), Symbol("Med (ns)")] for N in Ns] ./ 1e9
@@ -43,7 +44,7 @@ lines!(ax_t, Ns_ax, noprec_ts ./ FFT_ts)
 axislegend(ax_t, position=:rc)
 display(fig)
 
-file = jldopen("benchmark_staircase_FFT_FFTprec_noprec_MITgcmprec_report/PCG_N_iters.jld2")
+file = jldopen(joinpath(DATA_DIR, "staircase_PCG_N_iters.jld2"))
 pcg_iter_FFTprec = file["FFTprec"]
 pcg_iter_MITgcmprec = file["MITgcmprec"]
 pcg_iter_noprec = file["noprec"]

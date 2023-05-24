@@ -8,7 +8,6 @@ df = CSV.read(joinpath(DATA_DIR, "$(DATA_DIR)_report_nvtxsum.csv"), DataFrame)
 @info propertynames(df)
 
 Ns = [32, 64, 128, 160, 192, 224, 256]
-
 Ns_ax = (Ns.^3) .* log.(Ns)
 
 FFTprec_ts = [df[findfirst(df.Range .== "Main:Immersed timestep, FFT preconditioner N $N"), Symbol("Med (ns)")] for N in Ns] ./ 1e9
