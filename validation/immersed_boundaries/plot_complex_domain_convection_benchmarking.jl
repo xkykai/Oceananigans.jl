@@ -2,12 +2,14 @@ using CairoMakie
 using CSV
 using DataFrames
 
-df = CSV.read("benchmark_FFT_FFTprec_noprec_MITgcmprec_report/benchmark_FFT_FFTprec_noprec_MITgcmprec_report_nvtxsum.csv", DataFrame)
+DATA_DIR = "benchmark_moreNs_FFT_FFTprec_noprec_MITgcmprec"
+df = CSV.read(joinpath(DATA_DIR, "$(DATA_DIR)_report_nvtxsum.csv"), DataFrame)
 @info df.Range
 @info propertynames(df)
 
-Ns = [32, 64, 128, 256]
-Ns_ax = ([32, 64, 128, 256].^3) .* log.([32, 64, 128, 256])
+Ns = [32, 64, 128, 160, 192, 224, 256]
+
+Ns_ax = (Ns.^3) .* log.(Ns)
 
 FFTprec_ts = [df[findfirst(df.Range .== "Main:Immersed timestep, FFT preconditioner N $N"), Symbol("Med (ns)")] for N in Ns] ./ 1e9
 MITgcmprec_ts = [df[findfirst(df.Range .== "Main:Immersed timestep, MITgcm preconditioner N $N"), Symbol("Med (ns)")] for N in Ns] ./ 1e9
@@ -24,9 +26,19 @@ axislegend(ax_t, position=:lt)
 display(fig)
 # save("sloped_convection_benchmarks.png", fig, px_per_unit=4)
 
-pcg_iter_FFTprec = [12, 12.1, 12.6, 13.25]
-pcg_iter_MITgcmprec = [89, 176.4, 349.75, 685.6]
-pcg_iter_noprec = [174.55, 349.55, 698.05, 1371.8]
+file = jldopen(joinpath(DATA_DIR, "PCG_N_iters.jld2"))
+pcg_iter_FFTprec = file["FFTprec"]
+pcg_iter_MITgcmprec = file["MITgcmprec"]
+pcg_iter_noprec = file["noprec"]
+close(file)
+
+fig = Figure()
+ax_iter = Axis(fig[1, 1], xlabel="N", ylabel="Approximate PCG iterations per timestep", title="Sloped convection, GPU, 3D setup (N³ grid points)")
+lines!(ax_iter, Ns_ax, pcg_iter_FFTprec ./ pcg_iter_FFTprec, label="Immersed solver, FFT preconditioner")
+lines!(ax_iter, Ns_ax, pcg_iter_MITgcmprec ./ pcg_iter_FFTprec, label="Immersed solver, MITgcm preconditioner")
+lines!(ax_iter, Ns_ax, pcg_iter_noprec ./ pcg_iter_FFTprec, label="Immersed solver, No preconditioner")
+axislegend(ax_iter, position=:lt)
+display(fig)
 
 ##
 fig = Figure(resolution=(960, 960), fontsize=15)
@@ -48,9 +60,9 @@ scatter!(ax_iter, Ns_ax, pcg_iter_noprec, label="Immersed solver, No preconditio
 lines!(ax_iter, Ns_ax, pcg_iter_FFTprec)
 lines!(ax_iter, Ns_ax, pcg_iter_MITgcmprec)
 lines!(ax_iter, Ns_ax, pcg_iter_noprec)
-axislegend(ax_iter, position=:lt)
+# axislegend(ax_iter, position=:lt)
 
-ax_t2 = Axis(fig[2, 1], xlabel="N³ log(N)", ylabel="Δt(method) / Δt(FFT solver)")
+ax_t2 = Axis(fig[2, 1], xlabel="N³ log(N)", ylabel="Δt(method) / Δt(FFT solver)", yscale=log10)
 scatter!(ax_t2, Ns_ax, FFTprec_ts ./ FFT_ts, label="Immersed solver, FFT preconditioner")
 scatter!(ax_t2, Ns_ax, MITgcmprec_ts ./ FFT_ts, label="Immersed solver, MITgcm preconditioner")
 scatter!(ax_t2, Ns_ax, noprec_ts ./ FFT_ts, label="Immersed solver, No preconditioner")
@@ -61,7 +73,7 @@ lines!(ax_t2, Ns_ax, noprec_ts ./ FFT_ts)
 lines!(ax_t2, Ns_ax, FFT_ts ./ FFT_ts)
 # axislegend(ax_t2, position=:rc)
 
-ax_iter2 = Axis(fig[2, 2], xlabel="N³ log(N)", ylabel="iters(method) / iters(FFT preconditioner)")
+ax_iter2 = Axis(fig[2, 2], xlabel="N³ log(N)", ylabel="iters(method) / iters(FFT preconditioner)", yscale=log10)
 scatter!(ax_iter2, Ns_ax, pcg_iter_FFTprec ./ pcg_iter_FFTprec, label="Immersed solver, FFT preconditioner")
 scatter!(ax_iter2, Ns_ax, pcg_iter_MITgcmprec ./ pcg_iter_FFTprec, label="Immersed solver, MITgcm preconditioner")
 scatter!(ax_iter2, Ns_ax, pcg_iter_noprec ./ pcg_iter_FFTprec, label="Immersed solver, No preconditioner")
