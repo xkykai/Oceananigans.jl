@@ -90,16 +90,18 @@ end
 
 Ns = [32, 64, 128, 160, 192, 224, 256]
 
+Δt = 2e-2 * 64 / 2 / maximum(Ns)
+nsteps = 500
+
 @info "Benchmarking FFT solver"
 for N in Ns
-    Δt = 2e-2 * 64 / 2 / N
     model = setup_FFT(N)
 
     for step in 1:3
         time_step!(model, Δt)
     end
 
-    for step in 1:100
+    for step in 1:nsteps
         NVTX.@range "FFT timestep, N $N" begin
             time_step!(model, Δt)
         end
@@ -110,41 +112,19 @@ end
 PCG_N_FFTprec = zeros(length(Ns))
 
 for (i, N) in pairs(Ns)
-    Δt = 2e-2 * 64 / 2 / N
-    # model_FFT = setup_FFT(N)
     model = setup_immersed_FFTprec(N)
-    # model_immersed_noprec = setup_immersed_noprec(N)
-    # model_immersed_MITgcmprec = setup_immersed_MITgcmprec(N)
 
     for step in 1:3
-        # time_step!(model_FFT, Δt)
         time_step!(model, Δt)
-        # time_step!(model_immersed_noprec, Δt)
-        # time_step!(model_immersed_MITgcmprec, Δt)
     end
 
-    PCG_iters_FFTprec = zeros(100)
+    PCG_iters_FFTprec = zeros(nsteps)
 
-    for step in 1:100
-        # NVTX.@range "FFT timestep, N $N" begin
-        #     time_step!(model_FFT, Δt)
-        # end
-
+    for step in 1:nsteps
         NVTX.@range "Immersed timestep, FFT preconditioner N $N" begin
             time_step!(model, Δt)
         end
-
-        # NVTX.@range "Immersed timestep, no preconditioner N $N" begin
-        #     time_step!(model_immersed_noprec, Δt)
-        # end
-
-        # NVTX.@range "Immersed timestep, MITgcm preconditioner N $N" begin
-        #     time_step!(model_immersed_MITgcmprec, Δt)
-        # end
-
         @info "PCG iteration (FFT preconditioner) = $(model.pressure_solver.pcg_solver.iteration)"
-        # @info "PCG iteration (no preconditioner) = $(model_immersed_noprec.pressure_solver.pcg_solver.iteration)"
-        # @info "PCG iteration (MITgcm preconditioner) = $(model_immersed_MITgcmprec.pressure_solver.pcg_solver.iteration)"
         PCG_iters_FFTprec[step] = model.pressure_solver.pcg_solver.iteration
     end
     @info "Mean PCG iteration (FFT preconditioner) = $(mean(PCG_iters_FFTprec))"
@@ -155,15 +135,14 @@ end
 PCG_N_noprec = zeros(length(Ns))
 
 for (i, N) in pairs(Ns)
-    Δt = 2e-2 * 64 / 2 / N
     model = setup_immersed_noprec(N)
 
     for step in 1:3
         time_step!(model, Δt)
     end
-    PCG_iters_noprec = zeros(100)
+    PCG_iters_noprec = zeros(nsteps)
 
-    for step in 1:100
+    for step in 1:nsteps
         NVTX.@range "Immersed timestep, no preconditioner N $N" begin
             time_step!(model, Δt)
         end
@@ -179,15 +158,14 @@ end
 PCG_N_MITgcmprec = zeros(length(Ns))
 
 for (i, N) in pairs(Ns)
-    Δt = 2e-2 * 64 / 2 / N
     model = setup_immersed_MITgcmprec(N)
 
     for step in 1:3
         time_step!(model, Δt)
     end
-    PCG_iters_MITgcmprec = zeros(100)
+    PCG_iters_MITgcmprec = zeros(nsteps)
 
-    for step in 1:100
+    for step in 1:nsteps
         NVTX.@range "Immersed timestep, MITgcm preconditioner N $N" begin
             time_step!(model, Δt)
         end
