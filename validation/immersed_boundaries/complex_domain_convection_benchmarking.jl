@@ -91,7 +91,7 @@ end
 Ns = [32, 64, 128, 160, 192, 224, 256]
 
 Δt = 2e-2 * 64 / 2 / maximum(Ns)
-nsteps = 500
+nsteps = 200
 
 @info "Benchmarking FFT solver"
 for N in Ns
