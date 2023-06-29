@@ -135,8 +135,8 @@ function run_simulation(solver, preconditioner)
     run!(simulation)
 end
 
-run_simulation("ImmersedPoissonSolver", "FFT")
-run_simulation("FFT", nothing)
+# run_simulation("ImmersedPoissonSolver", "FFT")
+# run_simulation("FFT", nothing)
 
 #####
 ##### Visualize
@@ -179,6 +179,9 @@ bn_PCG = @lift interior(bt_PCG[$n], :, 1, :)
 un_PCG = @lift interior(ut_PCG[$n], :, 1, :)
 wn_PCG = @lift interior(wt_PCG[$n], :, 1, :)
 δn_PCG = @lift interior(δt_PCG[$n], :, 1, :)
+
+Nx = bt_FFT.grid.Nx
+Nz = bt_FFT.grid.Nz
 
 xC = bt_FFT.grid.xᶜᵃᵃ[1:Nx]
 zC = bt_FFT.grid.zᵃᵃᶜ[1:Nz]
