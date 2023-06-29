@@ -182,6 +182,7 @@ wn_PCG = @lift interior(wt_PCG[$n], :, 1, :)
 
 Nx = bt_FFT.grid.Nx
 Nz = bt_FFT.grid.Nz
+Nt = bt_FFT.times
 
 xC = bt_FFT.grid.xᶜᵃᵃ[1:Nx]
 zC = bt_FFT.grid.zᵃᵃᶜ[1:Nz]
