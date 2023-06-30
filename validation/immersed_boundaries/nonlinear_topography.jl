@@ -27,7 +27,7 @@ function run_simulation(solver, preconditioner)
     
     @info "Created $grid"
     
-    uv_bcs = FieldBoundaryConditions(top=GradientBoundaryCondition(0), bottom=ValueBoundaryCondition(0))
+    uv_bcs = FieldBoundaryConditions(top=FluxBoundaryCondition(0), bottom=ValueBoundaryCondition(0), immersed=ValueBoundaryCondition(0))
     
     U₀ = 1
     u_initial(x, y, z) = U₀ * z
@@ -50,7 +50,7 @@ function run_simulation(solver, preconditioner)
                                     coriolis = FPlane(f=0.1),
                                     tracers = (:b, :c),
                                     buoyancy = BuoyancyTracer(),
-                                    boundary_conditions=(; u=uv_bcs),
+                                    boundary_conditions=(; u=uv_bcs, v=uv_bcs),
                                     forcing=(u=u_sponge, v=v_sponge, w=w_sponge, b=b_sponge))
     else
         model = NonhydrostaticModel(; grid,
@@ -59,7 +59,7 @@ function run_simulation(solver, preconditioner)
                                     coriolis = FPlane(f=0.1),
                                     tracers = (:b, :c),
                                     buoyancy = BuoyancyTracer(),
-                                    boundary_conditions=(; u=uv_bcs),
+                                    boundary_conditions=(; u=uv_bcs, v=uv_bcs),
                                     forcing=(u=u_sponge, v=v_sponge, w=w_sponge, b=b_sponge))
     end
 
