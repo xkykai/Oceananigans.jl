@@ -141,12 +141,12 @@ function run_simulation(solver, preconditioner; Nr, Ra, Pr=1)
     
     simulation.output_writers[:jld2] = JLD2OutputWriter(model, outputs;
                                                         filename = prefix * "_fields",
-                                                        schedule = TimeInterval(0.1),
+                                                        schedule = TimeInterval(0.01),
                                                         overwrite_existing = true)
     
     simulation.output_writers[:timeseries] = JLD2OutputWriter(model, (; WB);
                                                               filename = prefix * "_time_series",
-                                                              schedule = TimeInterval(0.1),
+                                                              schedule = TimeInterval(0.01),
                                                               overwrite_existing = true)
     
     run!(simulation)
@@ -226,7 +226,7 @@ Label(fig[0, :], titlestr, font=:bold, tellwidth=false, tellheight=false)
 
 # display(fig)
 
-record(fig, "FFT_PCG_2D_rough_rayleighbenard.mp4", 1:Nt, framerate=5) do nn
+record(fig, "FFT_PCG_2D_rough_rayleighbenard.mp4", 1:Nt, framerate=30) do nn
     # @info string("Plotting frame ", nn, " of ", Nt)
     n[] = nn
 end
