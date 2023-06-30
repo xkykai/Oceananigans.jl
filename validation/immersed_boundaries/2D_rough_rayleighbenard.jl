@@ -51,7 +51,13 @@ function run_simulation(solver, preconditioner; Nr, Ra, Pr=1)
     
     # uvw_bcs = FieldBoundaryConditions(top=ValueBoundaryCondition(0), bottom=ValueBoundaryCondition(0),
     #                                   west=ValueBoundaryCondition(0), east=ValueBoundaryCondition(0))
-    uvw_bcs = FieldBoundaryConditions(top=ValueBoundaryCondition(0), west=ValueBoundaryCondition(0), east=ValueBoundaryCondition(0), immersed=ValueBoundaryCondition(0))
+    # uvw_bcs = FieldBoundaryConditions(top=ValueBoundaryCondition(0), immersed=ValueBoundaryCondition(0))
+    u_bcs = FieldBoundaryConditions(top=ValueBoundaryCondition(0), bottom=ValueBoundaryCondition(0), immersed=ValueBoundaryCondition(0))
+    v_bcs = FieldBoundaryConditions(top=ValueBoundaryCondition(0), bottom=ValueBoundaryCondition(0),
+                                    east=ValueBoundaryCondition(0), west=ValueBoundaryCondition(0),
+                                    immersed=ValueBoundaryCondition(0))
+    w_bcs = FieldBoundaryConditions(east=ValueBoundaryCondition(0), west=ValueBoundaryCondition(0),
+                                    immersed=ValueBoundaryCondition(0))
 
     b_bcs = FieldBoundaryConditions(top=ValueBoundaryCondition(-S/2), bottom=ValueBoundaryCondition(S/2), 
                                     west=FluxBoundaryCondition(0), east=FluxBoundaryCondition(0),
@@ -66,7 +72,7 @@ function run_simulation(solver, preconditioner; Nr, Ra, Pr=1)
                                     tracers = (:b),
                                     buoyancy = BuoyancyTracer(),
                                     timestepper = :RungeKutta3,
-                                    boundary_conditions=(; u=uvw_bcs, v=u=uvw_bcs, w=u=uvw_bcs, b=b_bcs))
+                                    boundary_conditions=(; u=u_bcs, v=v_bcs, w=w_bcs, b=b_bcs))
     else
         model = NonhydrostaticModel(; grid,
                                     pressure_solver = ImmersedPoissonSolver(grid, preconditioner=preconditioner, reltol=1e-8),
@@ -74,7 +80,7 @@ function run_simulation(solver, preconditioner; Nr, Ra, Pr=1)
                                     tracers = (:b),
                                     buoyancy = BuoyancyTracer(),
                                     timestepper = :RungeKutta3,
-                                    boundary_conditions=(; u=uvw_bcs, v=u=uvw_bcs, w=u=uvw_bcs, b=b_bcs))
+                                    boundary_conditions=(; u=u_bcs, v=v_bcs, w=w_bcs, b=b_bcs))
     end
 
     @info "Created $model"
