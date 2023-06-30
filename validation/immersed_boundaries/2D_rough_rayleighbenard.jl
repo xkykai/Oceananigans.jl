@@ -51,8 +51,7 @@ function run_simulation(solver, preconditioner; Nr, Ra, Pr=1)
     
     # uvw_bcs = FieldBoundaryConditions(top=ValueBoundaryCondition(0), bottom=ValueBoundaryCondition(0),
     #                                   west=ValueBoundaryCondition(0), east=ValueBoundaryCondition(0))
-    uvw_bcs = FieldBoundaryConditions(top=ValueBoundaryCondition(0), bottom=ValueBoundaryCondition(0), 
-                                      immersed=ValueBoundaryCondition(0))
+    uvw_bcs = FieldBoundaryConditions(top=ValueBoundaryCondition(0), west=ValueBoundaryCondition(0), east=ValueBoundaryCondition(0), immersed=ValueBoundaryCondition(0))
 
     b_bcs = FieldBoundaryConditions(top=ValueBoundaryCondition(-S/2), bottom=ValueBoundaryCondition(S/2), 
                                     west=FluxBoundaryCondition(0), east=FluxBoundaryCondition(0),
@@ -91,7 +90,7 @@ function run_simulation(solver, preconditioner; Nr, Ra, Pr=1)
     ##### Simulation
     #####
     
-    simulation = Simulation(model, Δt=Δt, stop_time=15)
+    simulation = Simulation(model, Δt=Δt, stop_time=5)
 
     wizard = TimeStepWizard(max_change=1.05, max_Δt=max_Δt, cfl=0.6)
     simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(1))
