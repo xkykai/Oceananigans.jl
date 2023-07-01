@@ -24,8 +24,7 @@ function run_simulation(solver, preconditioner)
     
 
     k = 1
-    Δt = 0.1e-2
-    max_Δt = 1e-2
+    Δt = 1e-3
     N² = 1 / (150 * Δt)^2
     U₀ = 1
     m = √(N² / U₀^2 - k^2)
@@ -85,11 +84,8 @@ function run_simulation(solver, preconditioner)
     ##### Simulation
     #####
     
-    simulation = Simulation(model, Δt=Δt, stop_time=30)
+    simulation = Simulation(model, Δt=Δt, stop_time=300)
 
-    wizard = TimeStepWizard(max_change=1.05, max_Δt=max_Δt, cfl=0.6)
-    simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(1))
-    
     wall_time = Ref(time_ns())
     
     b, c = model.tracers
@@ -139,13 +135,12 @@ function run_simulation(solver, preconditioner)
     
     simulation.output_writers[:jld2] = JLD2OutputWriter(model, outputs;
                                                         filename = prefix * "_fields",
-                                                       # schedule = TimeInterval(0.1),
-                                                        schedule = IterationInterval(50),
+                                                        schedule = TimeInterval(0.1),
                                                         overwrite_existing = true)
     
     simulation.output_writers[:timeseries] = JLD2OutputWriter(model, (; B, C);
                                                               filename = prefix * "_time_series",
-                                                              schedule = IterationInterval(50),
+                                                              schedule = TimeInterval(0.1),
                                                               overwrite_existing = true)
     
     run!(simulation)
