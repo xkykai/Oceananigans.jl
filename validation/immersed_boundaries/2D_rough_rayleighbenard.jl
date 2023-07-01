@@ -158,7 +158,7 @@ function run_simulation(solver, preconditioner; Nr, Ra, Pr=1)
 end
 
 Nr = 2
-Ra = 1e6
+Ra = 1e5
 
 run_simulation("FFT", nothing, Nr=Nr, Ra=Ra)
 run_simulation("ImmersedPoissonSolver", "FFT", Nr=Nr, Ra=Ra)
