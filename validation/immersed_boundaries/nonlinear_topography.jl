@@ -1,6 +1,7 @@
 using Oceananigans
 using CairoMakie
 using Printf
+using Roots
 
 include("immersed_pressure_solver.jl")
 
@@ -21,22 +22,32 @@ function run_simulation(solver, preconditioner)
                            z = (0, 1),
                            topology = (Periodic, Periodic, Bounded))
     
+
     k = 1
-    topography(x, y) = 0.1 * cos(k*x) + 0.1
+    Δt = 0.1e-2
+    max_Δt = 1e-2
+    N² = 1 / (150 * Δt)^2
+    U₀ = 1
+    m = √(N² / U₀^2 - k^2)
+    h₀ = 0.1
+
+    function nonlinear_topography(h, x)
+        return h₀ * cos(k*x + m*h) - h
+    end
+
+    topography(x, y) = find_zero(h -> nonlinear_topography(h, x), 1) + 0.1
+
     grid = ImmersedBoundaryGrid(grid, GridFittedBottom(topography))
     
     @info "Created $grid"
     
     uv_bcs = FieldBoundaryConditions(top=FluxBoundaryCondition(0), bottom=ValueBoundaryCondition(0), immersed=ValueBoundaryCondition(0))
     
-    U₀ = 1
     u_initial(x, y, z) = U₀ * z
     u_target = LinearTarget{:z}(intercept=0, gradient=U₀)
     
-    Δt = 0.5e-2
-    N² = 1 / (150 * Δt)^2
     b_initial(x, y, z) = N² * z
-    b_target = LinearTarget{:z}(intercept=0, gradient=1/(150*Δt)^2)
+    b_target = LinearTarget{:z}(intercept=0, gradient=N²)
     
     mask = GaussianMask{:x}(center=28, width=0.5)
     damping_rate = 1 / (3 * Δt)
@@ -50,6 +61,7 @@ function run_simulation(solver, preconditioner)
                                     coriolis = FPlane(f=0.1),
                                     tracers = (:b, :c),
                                     buoyancy = BuoyancyTracer(),
+                                    timestepper = :RungeKutta3,
                                     boundary_conditions=(; u=uv_bcs, v=uv_bcs),
                                     forcing=(u=u_sponge, v=v_sponge, w=w_sponge, b=b_sponge))
     else
@@ -59,6 +71,7 @@ function run_simulation(solver, preconditioner)
                                     coriolis = FPlane(f=0.1),
                                     tracers = (:b, :c),
                                     buoyancy = BuoyancyTracer(),
+                                    timestepper = :RungeKutta3,
                                     boundary_conditions=(; u=uv_bcs, v=uv_bcs),
                                     forcing=(u=u_sponge, v=v_sponge, w=w_sponge, b=b_sponge))
     end
@@ -72,7 +85,10 @@ function run_simulation(solver, preconditioner)
     ##### Simulation
     #####
     
-    simulation = Simulation(model, Δt=Δt, stop_iteration=80000)
+    simulation = Simulation(model, Δt=Δt, stop_time=30)
+
+    wizard = TimeStepWizard(max_change=1.05, max_Δt=max_Δt, cfl=0.6)
+    simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(1))
     
     wall_time = Ref(time_ns())
     
@@ -135,8 +151,26 @@ function run_simulation(solver, preconditioner)
     run!(simulation)
 end
 
-# run_simulation("ImmersedPoissonSolver", "FFT")
-# run_simulation("FFT", nothing)
+run_simulation("ImmersedPoissonSolver", "FFT")
+run_simulation("FFT", nothing)
+
+# function nonlinear_topography(h, x)
+#     k = 1
+#     N² = 1 / (150 * 0.5e-2)^2
+#     U₀ = 1
+#     m = √(N² / U₀^2 - k^2)
+#     h₀ = 0.1
+#     return h₀ * cos(k*x + m*h) - h
+# end
+
+# xs = 0:0.1:100π
+# hs = [find_zero(h -> nonlinear_topography(h, x), 1) for x in xs]
+
+# fig = Figure()
+# ax = Axis(fig[1,1])
+# lines!(ax, xs, hs)
+# lines!(ax, xs, cos.(xs) .* 0.1)
+# display(fig)
 
 #####
 ##### Visualize
