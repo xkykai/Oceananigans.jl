@@ -24,8 +24,8 @@ function run_simulation(solver, preconditioner)
     
 
     k = 1
-    Δt = 1e-3
-    N² = 1 / (150 * Δt)^2
+    Δt = 0.5e-3
+    N² = 1 / (150 * 1e-3)^2
     U₀ = 1
     m = √(N² / U₀^2 - k^2)
     h₀ = 0.1
@@ -77,6 +77,7 @@ function run_simulation(solver, preconditioner)
 
     @info "Created $model"
     @info "with pressure solver $(model.pressure_solver)"
+    @info model.velocities.u.boundary_conditions
     
     set!(model, b=b_initial, c=1, u=u_initial)
     
@@ -84,7 +85,7 @@ function run_simulation(solver, preconditioner)
     ##### Simulation
     #####
     
-    simulation = Simulation(model, Δt=Δt, stop_time=300)
+    simulation = Simulation(model, Δt=Δt, stop_time=100)
 
     wall_time = Ref(time_ns())
     
@@ -126,7 +127,7 @@ function run_simulation(solver, preconditioner)
     
     end
                        
-    simulation.callbacks[:p] = Callback(progress, IterationInterval(100))
+    simulation.callbacks[:p] = Callback(progress, IterationInterval(1))
     
     solver_type = model.pressure_solver isa ImmersedPoissonSolver ? "ImmersedPoissonSolver" : "FFTBasedPoissonSolver"
     prefix = "nonlinear_topography_" * solver_type
@@ -135,12 +136,14 @@ function run_simulation(solver, preconditioner)
     
     simulation.output_writers[:jld2] = JLD2OutputWriter(model, outputs;
                                                         filename = prefix * "_fields",
-                                                        schedule = TimeInterval(0.1),
+                                                        schedule = TimeInterval(0.05),
+                                                        # schedule = IterationInterval(1),
                                                         overwrite_existing = true)
     
     simulation.output_writers[:timeseries] = JLD2OutputWriter(model, (; B, C);
                                                               filename = prefix * "_time_series",
-                                                              schedule = TimeInterval(0.1),
+                                                              schedule = TimeInterval(0.05),
+                                                        # schedule = IterationInterval(1),
                                                               overwrite_existing = true)
     
     run!(simulation)
