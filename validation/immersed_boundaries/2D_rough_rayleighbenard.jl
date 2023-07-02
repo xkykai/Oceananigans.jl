@@ -64,7 +64,7 @@ function run_simulation(solver, preconditioner; Nr, Ra, Pr=1)
                                     immersed=ValueBoundaryCondition(S/2))
     
     # Δt = 1e-5 / 4
-    Δt = 5e-6
+    Δt = 1e-6
     max_Δt = 1e-4
     
     if solver == "FFT"
