@@ -132,7 +132,7 @@ function run_simulation(solver, preconditioner)
         return nothing
     end
                        
-    simulation.callbacks[:p] = Callback(print_progress, IterationInterval(100))
+    simulation.callbacks[:p] = Callback(print_progress, IterationInterval(1))
     
     solver_type = model.pressure_solver isa ImmersedPoissonSolver ? "ImmersedPoissonSolver" : "FFTBasedPoissonSolver"
     prefix = "nonlinear_topography_" * solver_type
