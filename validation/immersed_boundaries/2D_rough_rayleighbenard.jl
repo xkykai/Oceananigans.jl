@@ -64,7 +64,7 @@ function run_simulation(solver, preconditioner; Nr, Ra, Pr=1)
                                     immersed=ValueBoundaryCondition(S/2))
     
     # Δt = 1e-5 / 4
-    Δt = 1e-5
+    Δt = 5e-6
     max_Δt = 1e-4
     
     if solver == "FFT"
@@ -72,7 +72,7 @@ function run_simulation(solver, preconditioner; Nr, Ra, Pr=1)
                                     advection = WENO(),
                                     tracers = (:b),
                                     buoyancy = BuoyancyTracer(),
-                                    timestepper = :RungeKutta3,
+                                    # timestepper = :RungeKutta3,
                                     boundary_conditions=(; u=u_bcs, v=v_bcs, w=w_bcs, b=b_bcs))
     else
         model = NonhydrostaticModel(; grid,
@@ -80,7 +80,7 @@ function run_simulation(solver, preconditioner; Nr, Ra, Pr=1)
                                     advection = WENO(),
                                     tracers = (:b),
                                     buoyancy = BuoyancyTracer(),
-                                    timestepper = :RungeKutta3,
+                                    # timestepper = :RungeKutta3,
                                     boundary_conditions=(; u=u_bcs, v=v_bcs, w=w_bcs, b=b_bcs))
     end
 
@@ -99,8 +99,8 @@ function run_simulation(solver, preconditioner; Nr, Ra, Pr=1)
     
     simulation = Simulation(model, Δt=Δt, stop_time=1)
 
-    wizard = TimeStepWizard(max_change=1.05, max_Δt=max_Δt, cfl=0.6)
-    simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(1))
+    # wizard = TimeStepWizard(max_change=1.05, max_Δt=max_Δt, cfl=0.6)
+    # simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(1))
     
     wall_time = Ref(time_ns())
     
