@@ -49,7 +49,7 @@ function run_simulation(solver, preconditioner)
     b_target = LinearTarget{:z}(intercept=0, gradient=N²)
     
     mask = GaussianMask{:x}(center=28, width=0.5)
-    damping_rate = 1 / (3 * Δt)
+    damping_rate = 1 / (10 * Δt)
     v_sponge = w_sponge = Relaxation(rate=damping_rate, mask=mask)
     u_sponge = Relaxation(rate=damping_rate, mask=mask, target=u_target)
     b_sponge = Relaxation(rate=damping_rate, mask=mask, target=b_target)
@@ -60,7 +60,7 @@ function run_simulation(solver, preconditioner)
                                     coriolis = FPlane(f=0.1),
                                     tracers = (:b, :c),
                                     buoyancy = BuoyancyTracer(),
-                                    timestepper = :RungeKutta3,
+                                    # timestepper = :RungeKutta3,
                                     boundary_conditions=(; u=uv_bcs, v=uv_bcs),
                                     forcing=(u=u_sponge, v=v_sponge, w=w_sponge, b=b_sponge))
     else
@@ -70,7 +70,7 @@ function run_simulation(solver, preconditioner)
                                     coriolis = FPlane(f=0.1),
                                     tracers = (:b, :c),
                                     buoyancy = BuoyancyTracer(),
-                                    timestepper = :RungeKutta3,
+                                    # timestepper = :RungeKutta3,
                                     boundary_conditions=(; u=uv_bcs, v=uv_bcs),
                                     forcing=(u=u_sponge, v=v_sponge, w=w_sponge, b=b_sponge))
     end
@@ -87,8 +87,8 @@ function run_simulation(solver, preconditioner)
     
     simulation = Simulation(model, Δt=Δt, stop_time=20)
 
-    wizard = TimeStepWizard(max_change=1.05, max_Δt=1e-3, cfl=0.6)
-    simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(1))
+    # wizard = TimeStepWizard(max_change=1.05, max_Δt=1e-3, cfl=0.6)
+    # simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(1))
 
     wall_time = Ref(time_ns())
     
