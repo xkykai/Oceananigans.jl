@@ -24,7 +24,7 @@ function run_simulation(solver, preconditioner)
     
 
     k = 1
-    Δt = 0.5e-3
+    Δt = 0.1e-3
     N² = 1 / (150 * 1e-3)^2
     U₀ = 1
     m = √(N² / U₀^2 - k^2)
@@ -85,7 +85,10 @@ function run_simulation(solver, preconditioner)
     ##### Simulation
     #####
     
-    simulation = Simulation(model, Δt=Δt, stop_time=100)
+    simulation = Simulation(model, Δt=Δt, stop_time=20)
+
+    wizard = TimeStepWizard(max_change=1.05, max_Δt=1e-3, cfl=0.6)
+    simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(1))
 
     wall_time = Ref(time_ns())
     
@@ -102,17 +105,20 @@ function run_simulation(solver, preconditioner)
     ζ = Field(∂z(u) - ∂x(w))
     compute!(ζ)
     
-    function progress(sim)
+    function print_progress(sim)
         elapsed = time_ns() - wall_time[]
-    
-        msg = @sprintf("Iter: %d, time: %s, wall time: %s, max(u): (%6.3e, %6.3e, %6.3e) m/s, max(b) %6.3e, max|δ|: %.2e",
-                       iteration(sim), prettytime(sim), prettytime(1e-9 * elapsed),
-                       maximum(abs, sim.model.velocities.u),
-                       maximum(abs, sim.model.velocities.v),
-                       maximum(abs, sim.model.velocities.w),
-                       maximum(abs, sim.model.tracers.b),
-                       maximum(abs, δ))
-    
+
+        msg = @sprintf("[%05.2f%%] i: %d, t: %s, wall time: %s, max(u): (%6.3e, %6.3e, %6.3e) m/s, max(b) %6.3e, next Δt: %s",
+                        100 * (sim.model.clock.time / sim.stop_time),
+                        sim.model.clock.iteration,
+                        prettytime(sim.model.clock.time),
+                        prettytime(1e-9 * elapsed),
+                        maximum(abs, sim.model.velocities.u),
+                        maximum(abs, sim.model.velocities.v),
+                        maximum(abs, sim.model.velocities.w),
+                        maximum(abs, sim.model.tracers.b),
+                        prettytime(sim.Δt))
+
         pressure_solver = sim.model.pressure_solver
         if sim.model.pressure_solver isa ImmersedPoissonSolver
             solver_iterations = pressure_solver.pcg_solver.iteration 
@@ -124,10 +130,9 @@ function run_simulation(solver, preconditioner)
         wall_time[] = time_ns()
     
         return nothing
-    
     end
                        
-    simulation.callbacks[:p] = Callback(progress, IterationInterval(1))
+    simulation.callbacks[:p] = Callback(print_progress, IterationInterval(100))
     
     solver_type = model.pressure_solver isa ImmersedPoissonSolver ? "ImmersedPoissonSolver" : "FFTBasedPoissonSolver"
     prefix = "nonlinear_topography_" * solver_type
@@ -135,14 +140,14 @@ function run_simulation(solver, preconditioner)
     outputs = merge(model.velocities, model.tracers, (; p=model.pressures.pNHS, δ, ζ))
     
     simulation.output_writers[:jld2] = JLD2OutputWriter(model, outputs;
-                                                        filename = prefix * "_fields",
-                                                        schedule = TimeInterval(0.05),
+                                                        filename = prefix * "_fieldss",
+                                                        schedule = TimeInterval(0.01),
                                                         # schedule = IterationInterval(1),
                                                         overwrite_existing = true)
     
     simulation.output_writers[:timeseries] = JLD2OutputWriter(model, (; B, C);
-                                                              filename = prefix * "_time_series",
-                                                              schedule = TimeInterval(0.05),
+                                                              filename = prefix * "_time_seriess",
+                                                              schedule = TimeInterval(0.01),
                                                         # schedule = IterationInterval(1),
                                                               overwrite_existing = true)
     
@@ -174,14 +179,14 @@ run_simulation("FFT", nothing)
 ##### Visualize
 #####
 ##
-filename_FFT = "nonlinear_topography_FFTBasedPoissonSolver_fields.jld2"
+filename_FFT = "nonlinear_topography_FFTBasedPoissonSolver_fieldss.jld2"
 bt_FFT = FieldTimeSeries(filename_FFT, "b")
 ut_FFT = FieldTimeSeries(filename_FFT, "u")
 wt_FFT = FieldTimeSeries(filename_FFT, "w")
 δt_FFT = FieldTimeSeries(filename_FFT, "δ")
 times = bt_FFT.times
 
-filename_PCG = "nonlinear_topography_ImmersedPoissonSolver_fields.jld2"
+filename_PCG = "nonlinear_topography_ImmersedPoissonSolver_fieldss.jld2"
 bt_PCG = FieldTimeSeries(filename_PCG, "b")
 ut_PCG = FieldTimeSeries(filename_PCG, "u")
 wt_PCG = FieldTimeSeries(filename_PCG, "w")
