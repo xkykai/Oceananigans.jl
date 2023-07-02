@@ -65,7 +65,7 @@ function run_simulation(solver, preconditioner; Nr, Ra, Pr=1)
     
     # Δt = 1e-5 / 4
     Δt = 1e-5
-    max_Δt = 1e-4 / 4
+    max_Δt = 1e-4
     
     if solver == "FFT"
         model = NonhydrostaticModel(; grid,
@@ -97,10 +97,10 @@ function run_simulation(solver, preconditioner; Nr, Ra, Pr=1)
     ##### Simulation
     #####
     
-    simulation = Simulation(model, Δt=Δt, stop_time=5)
+    simulation = Simulation(model, Δt=Δt, stop_time=1)
 
-    # wizard = TimeStepWizard(max_change=1.05, max_Δt=max_Δt, cfl=0.6)
-    # simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(1))
+    wizard = TimeStepWizard(max_change=1.05, max_Δt=max_Δt, cfl=0.6)
+    simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(1))
     
     wall_time = Ref(time_ns())
     
@@ -138,7 +138,7 @@ function run_simulation(solver, preconditioner; Nr, Ra, Pr=1)
         return nothing
     end
                        
-    simulation.callbacks[:p] = Callback(print_progress, IterationInterval(100))
+    simulation.callbacks[:p] = Callback(print_progress, IterationInterval(1))
     
     solver_type = model.pressure_solver isa ImmersedPoissonSolver ? "ImmersedPoissonSolver" : "FFTBasedPoissonSolver"
     prefix = "2D_rough_rayleighbenard_" * solver_type
@@ -148,11 +148,13 @@ function run_simulation(solver, preconditioner; Nr, Ra, Pr=1)
     simulation.output_writers[:jld2] = JLD2OutputWriter(model, outputs;
                                                         filename = prefix * "_fields",
                                                         schedule = TimeInterval(0.01),
+                                                        # schedule = IterationInterval(1),
                                                         overwrite_existing = true)
     
     simulation.output_writers[:timeseries] = JLD2OutputWriter(model, (; WB);
                                                               filename = prefix * "_time_series",
                                                               schedule = TimeInterval(0.01),
+                                                        # schedule = IterationInterval(1),
                                                               overwrite_existing = true)
     
     run!(simulation)
@@ -161,8 +163,8 @@ end
 Nr = 2
 Ra = 1e5
 
-# run_simulation("FFT", nothing, Nr=Nr, Ra=Ra)
 run_simulation("ImmersedPoissonSolver", "FFT", Nr=Nr, Ra=Ra)
+run_simulation("FFT", nothing, Nr=Nr, Ra=Ra)
 
 #####
 ##### Visualize
