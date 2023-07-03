@@ -175,17 +175,17 @@ run_simulation("FFT", nothing, Nr=Nr, Ra=Ra)
 #####
 ##
 filename_FFT = "2D_rough_rayleighbenard_FFTBasedPoissonSolver_fields.jld2"
-bt_FFT = FieldTimeSeries(filename_FFT, "b")
-ut_FFT = FieldTimeSeries(filename_FFT, "u")
-wt_FFT = FieldTimeSeries(filename_FFT, "w")
-δt_FFT = FieldTimeSeries(filename_FFT, "δ")
+bt_FFT = FieldTimeSeries(filename_FFT, "b", backend=OnDisk())
+ut_FFT = FieldTimeSeries(filename_FFT, "u", backend=OnDisk())
+wt_FFT = FieldTimeSeries(filename_FFT, "w", backend=OnDisk())
+δt_FFT = FieldTimeSeries(filename_FFT, "δ", backend=OnDisk())
 times = bt_FFT.times
 
 filename_PCG = "2D_rough_rayleighbenard_ImmersedPoissonSolver_fields.jld2"
-bt_PCG = FieldTimeSeries(filename_PCG, "b")
-ut_PCG = FieldTimeSeries(filename_PCG, "u")
-wt_PCG = FieldTimeSeries(filename_PCG, "w")
-δt_PCG = FieldTimeSeries(filename_PCG, "δ")
+bt_PCG = FieldTimeSeries(filename_PCG, "b", backend=OnDisk())
+ut_PCG = FieldTimeSeries(filename_PCG, "u", backend=OnDisk())
+wt_PCG = FieldTimeSeries(filename_PCG, "w", backend=OnDisk())
+δt_PCG = FieldTimeSeries(filename_PCG, "δ", backend=OnDisk())
 
 fig = Figure(resolution=(1500, 1000))
 n = Observable(1)
