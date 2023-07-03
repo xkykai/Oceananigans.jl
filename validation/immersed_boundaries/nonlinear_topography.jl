@@ -24,7 +24,7 @@ function run_simulation(solver, preconditioner)
     
 
     k = 1
-    Δt = 1e-5
+    Δt = 0.5e-5
     N² = 1 / (150 * 1e-3)^2
     U₀ = 1
     m = √(N² / U₀^2 - k^2)
@@ -85,7 +85,7 @@ function run_simulation(solver, preconditioner)
     ##### Simulation
     #####
     
-    simulation = Simulation(model, Δt=Δt, stop_time=20)
+    simulation = Simulation(model, Δt=Δt, stop_time=9e-3)
 
     # wizard = TimeStepWizard(max_change=1.05, max_Δt=1e-3, cfl=0.6)
     # simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(1))
@@ -141,13 +141,13 @@ function run_simulation(solver, preconditioner)
     
     simulation.output_writers[:jld2] = JLD2OutputWriter(model, outputs;
                                                         filename = prefix * "_fieldss",
-                                                        schedule = TimeInterval(0.01),
+                                                        schedule = TimeInterval(1e-5),
                                                         # schedule = IterationInterval(1),
                                                         overwrite_existing = true)
     
     simulation.output_writers[:timeseries] = JLD2OutputWriter(model, (; B, C);
                                                               filename = prefix * "_time_seriess",
-                                                              schedule = TimeInterval(0.01),
+                                                              schedule = TimeInterval(1e-5),
                                                         # schedule = IterationInterval(1),
                                                               overwrite_existing = true)
     
