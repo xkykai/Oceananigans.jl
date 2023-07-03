@@ -75,7 +75,7 @@ function run_simulation(solver, preconditioner; Nr, Ra, Pr=1)
                                     tracers = (:b),
                                     buoyancy = BuoyancyTracer(),
                                     closure = ScalarDiffusivity(ν=ν, κ=κ),
-                                    timestepper = :RungeKutta3,
+                                    # timestepper = :RungeKutta3,
                                     boundary_conditions=(; u=u_bcs, v=v_bcs, w=w_bcs, b=b_bcs))
     else
         model = NonhydrostaticModel(; grid,
@@ -84,7 +84,7 @@ function run_simulation(solver, preconditioner; Nr, Ra, Pr=1)
                                     tracers = (:b),
                                     buoyancy = BuoyancyTracer(),
                                     closure = ScalarDiffusivity(ν=ν, κ=κ),
-                                    timestepper = :RungeKutta3,
+                                    # timestepper = :RungeKutta3,
                                     boundary_conditions=(; u=u_bcs, v=v_bcs, w=w_bcs, b=b_bcs))
     end
 
@@ -101,10 +101,10 @@ function run_simulation(solver, preconditioner; Nr, Ra, Pr=1)
     ##### Simulation
     #####
     
-    simulation = Simulation(model, Δt=Δt, stop_time=1)
+    simulation = Simulation(model, Δt=Δt, stop_time=0.01)
 
-    wizard = TimeStepWizard(max_change=1.05, max_Δt=max_Δt, cfl=0.6)
-    simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(1))
+    # wizard = TimeStepWizard(max_change=1.05, max_Δt=max_Δt, cfl=0.6)
+    # simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(1))
     
     wall_time = Ref(time_ns())
     
@@ -142,7 +142,7 @@ function run_simulation(solver, preconditioner; Nr, Ra, Pr=1)
         return nothing
     end
                        
-    simulation.callbacks[:p] = Callback(print_progress, IterationInterval(100))
+    simulation.callbacks[:p] = Callback(print_progress, IterationInterval(1))
     
     solver_type = model.pressure_solver isa ImmersedPoissonSolver ? "ImmersedPoissonSolver" : "FFTBasedPoissonSolver"
     prefix = "2D_rough_rayleighbenard_" * solver_type
@@ -150,15 +150,15 @@ function run_simulation(solver, preconditioner; Nr, Ra, Pr=1)
     outputs = merge(model.velocities, model.tracers, (; δ))
     
     simulation.output_writers[:jld2] = JLD2OutputWriter(model, outputs;
-                                                        filename = prefix * "_fields",
-                                                        schedule = TimeInterval(0.01),
-                                                        # schedule = IterationInterval(1),
+                                                        filename = prefix * "_fieldss",
+                                                        # schedule = TimeInterval(0.01),
+                                                        schedule = IterationInterval(1),
                                                         overwrite_existing = true)
     
     simulation.output_writers[:timeseries] = JLD2OutputWriter(model, (; WB);
-                                                              filename = prefix * "_time_series",
-                                                              schedule = TimeInterval(0.01),
-                                                        # schedule = IterationInterval(1),
+                                                              filename = prefix * "_time_seriess",
+                                                            #   schedule = TimeInterval(0.01),
+                                                        schedule = IterationInterval(1),
                                                               overwrite_existing = true)
     
     run!(simulation)
@@ -174,18 +174,18 @@ run_simulation("FFT", nothing, Nr=Nr, Ra=Ra)
 ##### Visualize
 #####
 ##
-filename_FFT = "2D_rough_rayleighbenard_FFTBasedPoissonSolver_fields.jld2"
-bt_FFT = FieldTimeSeries(filename_FFT, "b", backend=OnDisk())
-ut_FFT = FieldTimeSeries(filename_FFT, "u", backend=OnDisk())
-wt_FFT = FieldTimeSeries(filename_FFT, "w", backend=OnDisk())
-δt_FFT = FieldTimeSeries(filename_FFT, "δ", backend=OnDisk())
+filename_FFT = "2D_rough_rayleighbenard_FFTBasedPoissonSolver_fieldss.jld2"
+bt_FFT = FieldTimeSeries(filename_FFT, "b")
+ut_FFT = FieldTimeSeries(filename_FFT, "u")
+wt_FFT = FieldTimeSeries(filename_FFT, "w")
+δt_FFT = FieldTimeSeries(filename_FFT, "δ")
 times = bt_FFT.times
 
-filename_PCG = "2D_rough_rayleighbenard_ImmersedPoissonSolver_fields.jld2"
-bt_PCG = FieldTimeSeries(filename_PCG, "b", backend=OnDisk())
-ut_PCG = FieldTimeSeries(filename_PCG, "u", backend=OnDisk())
-wt_PCG = FieldTimeSeries(filename_PCG, "w", backend=OnDisk())
-δt_PCG = FieldTimeSeries(filename_PCG, "δ", backend=OnDisk())
+filename_PCG = "2D_rough_rayleighbenard_ImmersedPoissonSolver_fieldss.jld2"
+bt_PCG = FieldTimeSeries(filename_PCG, "b")
+ut_PCG = FieldTimeSeries(filename_PCG, "u")
+wt_PCG = FieldTimeSeries(filename_PCG, "w")
+δt_PCG = FieldTimeSeries(filename_PCG, "δ")
 
 fig = Figure(resolution=(1500, 1000))
 n = Observable(1)
