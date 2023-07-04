@@ -24,7 +24,7 @@ function run_simulation(solver, preconditioner)
     
 
     k = 1
-    Δt = 0.5e-5
+    Δt = 5e-5
     N² = 1 / (150 * 1e-3)^2
     U₀ = 1
     m = √(N² / U₀^2 - k^2)
@@ -49,7 +49,7 @@ function run_simulation(solver, preconditioner)
     b_target = LinearTarget{:z}(intercept=0, gradient=N²)
     
     mask = GaussianMask{:x}(center=28, width=0.5)
-    damping_rate = 1 / (10 * Δt)
+    damping_rate = 1 / (3 * Δt)
     v_sponge = w_sponge = Relaxation(rate=damping_rate, mask=mask)
     u_sponge = Relaxation(rate=damping_rate, mask=mask, target=u_target)
     b_sponge = Relaxation(rate=damping_rate, mask=mask, target=b_target)
@@ -77,7 +77,6 @@ function run_simulation(solver, preconditioner)
 
     @info "Created $model"
     @info "with pressure solver $(model.pressure_solver)"
-    @info model.velocities.u.boundary_conditions
     
     set!(model, b=b_initial, c=1, u=u_initial)
     
@@ -85,7 +84,7 @@ function run_simulation(solver, preconditioner)
     ##### Simulation
     #####
     
-    simulation = Simulation(model, Δt=Δt, stop_time=9e-3)
+    simulation = Simulation(model, Δt=Δt, stop_time=20)
 
     # wizard = TimeStepWizard(max_change=1.05, max_Δt=1e-3, cfl=0.6)
     # simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(1))
@@ -132,7 +131,7 @@ function run_simulation(solver, preconditioner)
         return nothing
     end
                        
-    simulation.callbacks[:p] = Callback(print_progress, IterationInterval(1))
+    simulation.callbacks[:p] = Callback(print_progress, IterationInterval(100))
     
     solver_type = model.pressure_solver isa ImmersedPoissonSolver ? "ImmersedPoissonSolver" : "FFTBasedPoissonSolver"
     prefix = "nonlinear_topography_" * solver_type
@@ -141,14 +140,14 @@ function run_simulation(solver, preconditioner)
     
     simulation.output_writers[:jld2] = JLD2OutputWriter(model, outputs;
                                                         filename = prefix * "_fieldss",
-                                                        schedule = TimeInterval(1e-5),
-                                                        # schedule = IterationInterval(1),
+                                                        schedule = TimeInterval(1e-3),
+                                                        # schedule = IterationInterval(20),
                                                         overwrite_existing = true)
     
     simulation.output_writers[:timeseries] = JLD2OutputWriter(model, (; B, C);
                                                               filename = prefix * "_time_seriess",
-                                                              schedule = TimeInterval(1e-5),
-                                                        # schedule = IterationInterval(1),
+                                                            schedule = TimeInterval(1e-3),
+                                                        # schedule = IterationInterval(20),
                                                               overwrite_existing = true)
     
     run!(simulation)
