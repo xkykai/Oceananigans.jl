@@ -34,7 +34,7 @@ function run_simulation(solver, preconditioner)
         return h₀ * cos(k*x + m*h) - h
     end
 
-    topography(x, y) = find_zero(h -> nonlinear_topography(h, x), 1) + 0.1
+    topography(x, y) = find_zero(h -> nonlinear_topography(h, x), 1) + h₀
 
     grid = ImmersedBoundaryGrid(grid, GridFittedBottom(topography))
     
