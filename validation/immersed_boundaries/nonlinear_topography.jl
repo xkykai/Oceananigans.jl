@@ -10,7 +10,7 @@ include("immersed_pressure_solver.jl")
 #####
 
 function run_simulation(solver, preconditioner)
-    Nz = 32
+    Nz = 128
     Nx = Nz * 30
     Ny = 1
     
@@ -24,7 +24,7 @@ function run_simulation(solver, preconditioner)
     
 
     k = 1
-    Δt = 1e-4
+    Δt = 5e-4
     N² = 1 / (150 * 1e-3)^2
     U₀ = 1
     m = √(N² / U₀^2 - k^2)
