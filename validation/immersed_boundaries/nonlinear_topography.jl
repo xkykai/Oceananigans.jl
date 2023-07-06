@@ -10,7 +10,7 @@ include("immersed_pressure_solver.jl")
 #####
 
 function run_simulation(solver, preconditioner)
-    Nz = 64
+    Nz = 32
     Nx = Nz * 30
     Ny = 1
     
@@ -24,7 +24,7 @@ function run_simulation(solver, preconditioner)
     
 
     k = 1
-    Δt = 5e-5
+    Δt = 1e-4
     N² = 1 / (150 * 1e-3)^2
     U₀ = 1
     m = √(N² / U₀^2 - k^2)
@@ -84,7 +84,7 @@ function run_simulation(solver, preconditioner)
     ##### Simulation
     #####
     
-    simulation = Simulation(model, Δt=Δt, stop_time=20)
+    simulation = Simulation(model, Δt=Δt, stop_time=30)
 
     # wizard = TimeStepWizard(max_change=1.05, max_Δt=1e-3, cfl=0.6)
     # simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(1))
@@ -140,14 +140,14 @@ function run_simulation(solver, preconditioner)
     
     simulation.output_writers[:jld2] = JLD2OutputWriter(model, outputs;
                                                         filename = prefix * "_fieldss",
-                                                        schedule = TimeInterval(1e-3),
-                                                        # schedule = IterationInterval(20),
+                                                        # schedule = TimeInterval(2e-3),
+                                                        schedule = IterationInterval(100),
                                                         overwrite_existing = true)
     
     simulation.output_writers[:timeseries] = JLD2OutputWriter(model, (; B, C);
                                                               filename = prefix * "_time_seriess",
-                                                            schedule = TimeInterval(1e-3),
-                                                        # schedule = IterationInterval(20),
+                                                            # schedule = TimeInterval(2e-3),
+                                                        schedule = IterationInterval(100),
                                                               overwrite_existing = true)
     
     run!(simulation)
@@ -178,11 +178,25 @@ run_simulation("FFT", nothing)
 ##### Visualize
 #####
 ##
+@info "Loading files"
 filename_FFT = "nonlinear_topography_FFTBasedPoissonSolver_fieldss.jld2"
 bt_FFT = FieldTimeSeries(filename_FFT, "b")
 ut_FFT = FieldTimeSeries(filename_FFT, "u")
 wt_FFT = FieldTimeSeries(filename_FFT, "w")
 δt_FFT = FieldTimeSeries(filename_FFT, "δ")
+
+# bt_FFT = replace(bt_FFT, NaN => 0)
+# ut_FFT = replace(ut_FFT, NaN => 0)
+# wt_FFT = replace(wt_FFT, NaN => 0)
+# δt_FFT = replace(δt_FFT, NaN => 0)
+# bt_FFT = replace(bt_FFT, Inf => 0)
+# ut_FFT = replace(ut_FFT, Inf => 0)
+# wt_FFT = replace(wt_FFT, Inf => 0)
+# δt_FFT = replace(δt_FFT, Inf => 0)
+# bt_FFT = replace(bt_FFT, -Inf => 0)
+# ut_FFT = replace(ut_FFT, -Inf => 0)
+# wt_FFT = replace(wt_FFT, -Inf => 0)
+# δt_FFT = replace(δt_FFT, -Inf => 0)
 times = bt_FFT.times
 
 filename_PCG = "nonlinear_topography_ImmersedPoissonSolver_fieldss.jld2"
@@ -190,7 +204,20 @@ bt_PCG = FieldTimeSeries(filename_PCG, "b")
 ut_PCG = FieldTimeSeries(filename_PCG, "u")
 wt_PCG = FieldTimeSeries(filename_PCG, "w")
 δt_PCG = FieldTimeSeries(filename_PCG, "δ")
+# bt_PCG = replace(bt_PCG, NaN => 0)
+# ut_PCG = replace(ut_PCG, NaN => 0)
+# wt_PCG = replace(wt_PCG, NaN => 0)
+# δt_PCG = replace(δt_PCG, NaN => 0)
+# bt_PCG = replace(bt_PCG, Inf => 0)
+# ut_PCG = replace(ut_PCG, Inf => 0)
+# wt_PCG = replace(wt_PCG, Inf => 0)
+# δt_PCG = replace(δt_PCG, Inf => 0)
+# bt_PCG = replace(bt_PCG, -Inf => 0)
+# ut_PCG = replace(ut_PCG, -Inf => 0)
+# wt_PCG = replace(wt_PCG, -Inf => 0)
+# δt_PCG = replace(δt_PCG, -Inf => 0)
 
+@info "Plotting"
 fig = Figure(resolution=(2000, 700))
 n = Observable(1)
 
@@ -246,4 +273,5 @@ record(fig, "FFT_PCG_nonlinear_topography.mp4", 1:Nt, framerate=30) do nn
     # @info string("Plotting frame ", nn, " of ", Nt)
     n[] = nn
 end
+@info "Animation completed"
 ## 

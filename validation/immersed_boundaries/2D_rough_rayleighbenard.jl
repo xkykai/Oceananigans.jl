@@ -10,7 +10,6 @@ include("immersed_pressure_solver.jl")
 
 function run_simulation(solver, preconditioner; Nr, Ra, Pr=1)
     Lx = 1
-    Ly = 1
     Lz = 1
 
     h = Lx / Nr / 2
@@ -23,15 +22,14 @@ function run_simulation(solver, preconditioner; Nr, Ra, Pr=1)
 
     Nz = 256
     Nx = Nz
-    Ny = 1
     
     grid = RectilinearGrid(GPU(), Float64,
-                           size = (Nx, Ny, Nz), 
-                           halo = (4, 4, 4),
+                           size = (Nx, Nz), 
+                           halo = (4, 4),
                            x = (0, Lx),
-                           y = (0, Ly),
                            z = (0, Lz),
-                           topology = (Bounded, Periodic, Bounded))
+                           topology = (Bounded, Flat, Bounded))
+
 
     @inline function local_roughness(x, x₀, h)
         if x > x₀ - h && x <= x₀
@@ -44,14 +42,12 @@ function run_simulation(solver, preconditioner; Nr, Ra, Pr=1)
     end
 
     topography(x, y) = sum([local_roughness(x, x₀, h) for x₀ in x₀s])
+    # topography(x, y) = 0.01
 
     grid = ImmersedBoundaryGrid(grid, GridFittedBottom(topography))
     
     @info "Created $grid"
     
-    # uvw_bcs = FieldBoundaryConditions(top=ValueBoundaryCondition(0), bottom=ValueBoundaryCondition(0),
-    #                                   west=ValueBoundaryCondition(0), east=ValueBoundaryCondition(0))
-    # uvw_bcs = FieldBoundaryConditions(top=ValueBoundaryCondition(0), immersed=ValueBoundaryCondition(0))
     u_bcs = FieldBoundaryConditions(top=ValueBoundaryCondition(0), bottom=ValueBoundaryCondition(0), immersed=ValueBoundaryCondition(0))
 
     v_bcs = FieldBoundaryConditions(top=ValueBoundaryCondition(0), bottom=ValueBoundaryCondition(0),
@@ -61,12 +57,9 @@ function run_simulation(solver, preconditioner; Nr, Ra, Pr=1)
     w_bcs = FieldBoundaryConditions(east=ValueBoundaryCondition(0), west=ValueBoundaryCondition(0),
                                     immersed=ValueBoundaryCondition(0))
 
-    b_bcs = FieldBoundaryConditions(top=ValueBoundaryCondition(-S/2), bottom=ValueBoundaryCondition(S/2), 
-                                    west=FluxBoundaryCondition(0), east=FluxBoundaryCondition(0),
-                                    immersed=ValueBoundaryCondition(S/2))
-    
-    # Δt = 1e-5 / 4
-    Δt = 1e-6
+    b_bcs = FieldBoundaryConditions(top=ValueBoundaryCondition(0), immersed=ValueBoundaryCondition(S))
+
+    Δt = 1e-5 / 4
     max_Δt = 1e-5
     
     if solver == "FFT"
@@ -101,7 +94,7 @@ function run_simulation(solver, preconditioner; Nr, Ra, Pr=1)
     ##### Simulation
     #####
     
-    simulation = Simulation(model, Δt=Δt, stop_time=0.01)
+    simulation = Simulation(model, Δt=Δt, stop_time=10)
 
     # wizard = TimeStepWizard(max_change=1.05, max_Δt=max_Δt, cfl=0.6)
     # simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(1))
@@ -142,7 +135,7 @@ function run_simulation(solver, preconditioner; Nr, Ra, Pr=1)
         return nothing
     end
                        
-    simulation.callbacks[:p] = Callback(print_progress, IterationInterval(1))
+    simulation.callbacks[:p] = Callback(print_progress, IterationInterval(100))
     
     solver_type = model.pressure_solver isa ImmersedPoissonSolver ? "ImmersedPoissonSolver" : "FFTBasedPoissonSolver"
     prefix = "2D_rough_rayleighbenard_" * solver_type
@@ -151,14 +144,14 @@ function run_simulation(solver, preconditioner; Nr, Ra, Pr=1)
     
     simulation.output_writers[:jld2] = JLD2OutputWriter(model, outputs;
                                                         filename = prefix * "_fieldss",
-                                                        # schedule = TimeInterval(0.01),
-                                                        schedule = IterationInterval(1),
+                                                        # schedule = TimeInterval(5e-3),
+                                                        schedule = IterationInterval(1000),
                                                         overwrite_existing = true)
     
     simulation.output_writers[:timeseries] = JLD2OutputWriter(model, (; WB);
                                                               filename = prefix * "_time_seriess",
-                                                            #   schedule = TimeInterval(0.01),
-                                                        schedule = IterationInterval(1),
+                                                            #   schedule = TimeInterval(5e-3),
+                                                        schedule = IterationInterval(1000),
                                                               overwrite_existing = true)
     
     run!(simulation)
@@ -242,4 +235,4 @@ record(fig, "FFT_PCG_2D_rough_rayleighbenard.mp4", 1:Nt, framerate=30) do nn
     # @info string("Plotting frame ", nn, " of ", Nt)
     n[] = nn
 end
-## 
+##
