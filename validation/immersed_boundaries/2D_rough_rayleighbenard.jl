@@ -59,7 +59,7 @@ function run_simulation(solver, preconditioner; Nr, Ra, Pr=1)
 
     b_bcs = FieldBoundaryConditions(top=ValueBoundaryCondition(0), immersed=ValueBoundaryCondition(S))
 
-    Δt = 1e-5 / 4
+    Δt = 1e-6
     max_Δt = 1e-5
     
     if solver == "FFT"
@@ -94,7 +94,7 @@ function run_simulation(solver, preconditioner; Nr, Ra, Pr=1)
     ##### Simulation
     #####
     
-    simulation = Simulation(model, Δt=Δt, stop_time=10)
+    simulation = Simulation(model, Δt=Δt, stop_time=5)
 
     # wizard = TimeStepWizard(max_change=1.05, max_Δt=max_Δt, cfl=0.6)
     # simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(1))
