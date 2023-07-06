@@ -11,7 +11,7 @@ include("immersed_pressure_solver.jl")
 
 function run_simulation(solver, preconditioner)
     Nz = 128
-    Nx = Nz * 30
+    Nx = Nz * 20
     Ny = 1
     
     grid = RectilinearGrid(GPU(), Float64,
@@ -19,7 +19,7 @@ function run_simulation(solver, preconditioner)
                            halo = (4, 4, 4),
                            x = (0, 30),
                            y = (0, 1),
-                           z = (0, 1),
+                           z = (0, 1.5),
                            topology = (Periodic, Periodic, Bounded))
     
 
@@ -45,12 +45,20 @@ function run_simulation(solver, preconditioner)
     b_initial(x, y, z) = N² * z
     b_target = LinearTarget{:z}(intercept=0, gradient=N²)
     
-    mask = GaussianMask{:x}(center=28, width=0.5)
+    # mask_right = GaussianMask{:x}(center=28, width=0.5) + GaussianMask{:z}(center=1.25, width=0.5)
+    # mask_top = GaussianMask{:z}(center=1.25, width=0.05)
+
+    combined_mask(x, y, z) = 0.5 * (exp(-(z - 1.25)^2 / (2 * 0.05^2)) + exp(-(x - 28)^2 / (2 * 0.5^2)))
+
     damping_rate = 1 / (3 * Δt)
 
-    v_sponge = w_sponge = Relaxation(rate=damping_rate, mask=mask)
-    u_sponge = Relaxation(rate=damping_rate, mask=mask, target=U₀)
-    b_sponge = Relaxation(rate=damping_rate, mask=mask, target=b_target)
+    # v_sponge = w_sponge = Relaxation(rate=damping_rate, mask=mask_right)
+    # u_sponge = Relaxation(rate=damping_rate, mask=mask_right, target=U₀)
+    # b_sponge = Relaxation(rate=damping_rate, mask=mask_right, target=b_target)
+
+    v_sponge = w_sponge = Relaxation(rate=damping_rate, mask=combined_mask)
+    u_sponge = Relaxation(rate=damping_rate, mask=combined_mask, target=U₀)
+    b_sponge = Relaxation(rate=damping_rate, mask=combined_mask, target=b_target)
     
     if solver == "FFT"
         model = NonhydrostaticModel(; grid,
