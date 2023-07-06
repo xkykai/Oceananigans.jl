@@ -42,16 +42,14 @@ function run_simulation(solver, preconditioner)
     
     uv_bcs = FieldBoundaryConditions(top=FluxBoundaryCondition(0), bottom=ValueBoundaryCondition(0), immersed=ValueBoundaryCondition(0))
     
-    u_initial(x, y, z) = U₀ * z
-    u_target = LinearTarget{:z}(intercept=0, gradient=U₀)
-    
     b_initial(x, y, z) = N² * z
     b_target = LinearTarget{:z}(intercept=0, gradient=N²)
     
     mask = GaussianMask{:x}(center=28, width=0.5)
     damping_rate = 1 / (3 * Δt)
+
     v_sponge = w_sponge = Relaxation(rate=damping_rate, mask=mask)
-    u_sponge = Relaxation(rate=damping_rate, mask=mask, target=u_target)
+    u_sponge = Relaxation(rate=damping_rate, mask=mask, target=U₀)
     b_sponge = Relaxation(rate=damping_rate, mask=mask, target=b_target)
     
     if solver == "FFT"
@@ -78,7 +76,7 @@ function run_simulation(solver, preconditioner)
     @info "Created $model"
     @info "with pressure solver $(model.pressure_solver)"
     
-    set!(model, b=b_initial, c=1, u=u_initial)
+    set!(model, b=b_initial, c=1, u=U₀)
     
     #####
     ##### Simulation
@@ -184,19 +182,6 @@ bt_FFT = FieldTimeSeries(filename_FFT, "b")
 ut_FFT = FieldTimeSeries(filename_FFT, "u")
 wt_FFT = FieldTimeSeries(filename_FFT, "w")
 δt_FFT = FieldTimeSeries(filename_FFT, "δ")
-
-# bt_FFT = replace(bt_FFT, NaN => 0)
-# ut_FFT = replace(ut_FFT, NaN => 0)
-# wt_FFT = replace(wt_FFT, NaN => 0)
-# δt_FFT = replace(δt_FFT, NaN => 0)
-# bt_FFT = replace(bt_FFT, Inf => 0)
-# ut_FFT = replace(ut_FFT, Inf => 0)
-# wt_FFT = replace(wt_FFT, Inf => 0)
-# δt_FFT = replace(δt_FFT, Inf => 0)
-# bt_FFT = replace(bt_FFT, -Inf => 0)
-# ut_FFT = replace(ut_FFT, -Inf => 0)
-# wt_FFT = replace(wt_FFT, -Inf => 0)
-# δt_FFT = replace(δt_FFT, -Inf => 0)
 times = bt_FFT.times
 
 filename_PCG = "nonlinear_topography_ImmersedPoissonSolver_fieldss.jld2"
@@ -204,18 +189,6 @@ bt_PCG = FieldTimeSeries(filename_PCG, "b")
 ut_PCG = FieldTimeSeries(filename_PCG, "u")
 wt_PCG = FieldTimeSeries(filename_PCG, "w")
 δt_PCG = FieldTimeSeries(filename_PCG, "δ")
-# bt_PCG = replace(bt_PCG, NaN => 0)
-# ut_PCG = replace(ut_PCG, NaN => 0)
-# wt_PCG = replace(wt_PCG, NaN => 0)
-# δt_PCG = replace(δt_PCG, NaN => 0)
-# bt_PCG = replace(bt_PCG, Inf => 0)
-# ut_PCG = replace(ut_PCG, Inf => 0)
-# wt_PCG = replace(wt_PCG, Inf => 0)
-# δt_PCG = replace(δt_PCG, Inf => 0)
-# bt_PCG = replace(bt_PCG, -Inf => 0)
-# ut_PCG = replace(ut_PCG, -Inf => 0)
-# wt_PCG = replace(wt_PCG, -Inf => 0)
-# δt_PCG = replace(δt_PCG, -Inf => 0)
 
 @info "Plotting"
 fig = Figure(resolution=(2000, 700))
