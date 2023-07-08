@@ -88,6 +88,10 @@ function compute_laplacian!(∇²ϕ, ϕ)
 end
 
 function solve_for_pressure!(pressure, solver::ImmersedPoissonSolver, Δt, U★)
+    # TODO: Is this the right criteria?
+    min_Δt = eps(typeof(Δt))
+    Δt < min_Δt && return pressure
+
     rhs = solver.rhs
     grid = solver.grid
     arch = architecture(grid)
@@ -107,6 +111,7 @@ function solve_for_pressure!(pressure, solver::ImmersedPoissonSolver, Δt, U★)
     wait(device(arch), event)
 
     # Solve pressure Pressure equation for pressure, given rhs
+    @info "Δt before pressure solve: $(Δt)"
     solve!(pressure, solver.pcg_solver, rhs)
 
     return pressure
