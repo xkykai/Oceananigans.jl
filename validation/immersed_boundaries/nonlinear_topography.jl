@@ -10,28 +10,25 @@ include("immersed_pressure_solver.jl")
 #####
 
 function run_simulation(solver, preconditioner)
-    Nz = 128
-    Nx = Nz * 20
-    Ny = 1
+    Nx = 2048
+    Nz = Nx * 2
     
     grid = RectilinearGrid(GPU(), Float64,
-                           size = (Nx, Ny, Nz), 
-                           halo = (4, 4, 4),
+                           size = (Nx, Nz), 
                            x = (0, 30),
-                           y = (0, 1),
-                           z = (0, 1.5),
-                           topology = (Periodic, Periodic, Bounded))
+                           z = (0, 60),
+                           topology = (Periodic, Flat, Bounded))
     
-
-    k = 1
+    k = 2π / 10
     Δt = 5e-4
-    N² = 1 / (150 * 1e-3)^2
-    U₀ = 1
-    m = √(N² / U₀^2 - k^2)
-    h₀ = 0.1
+    N² = 1 / (150 * 5e-4)^2
+    U₀ = 50
+    m = √(k^2 - N² / U₀^2)
+    h₀ = 0.05
 
     function nonlinear_topography(h, x)
-        return h₀ * cos(k*x + m*h) - h
+        # return h₀ * cos(k*x + m*h) - h
+        return h₀ * cos(k*x) * exp(-m*h) - h
     end
 
     topography(x, y) = find_zero(h -> nonlinear_topography(h, x), 1) + h₀
@@ -46,25 +43,24 @@ function run_simulation(solver, preconditioner)
     b_target = LinearTarget{:z}(intercept=0, gradient=N²)
     
     # mask_right = GaussianMask{:x}(center=28, width=0.5) + GaussianMask{:z}(center=1.25, width=0.5)
-    # mask_top = GaussianMask{:z}(center=1.25, width=0.05)
+    mask_top = GaussianMask{:z}(center=58, width=0.5)
 
-    combined_mask(x, y, z) = 0.5 * (exp(-(z - 1.25)^2 / (2 * 0.05^2)) + exp(-(x - 28)^2 / (2 * 0.5^2)))
+    # combined_mask(x, y, z) = 0.5 * (exp(-(z - 1.25)^2 / (2 * 0.05^2)) + exp(-(x - 28)^2 / (2 * 0.5^2)))
 
-    damping_rate = 1 / (3 * Δt)
+    damping_rate = 1 / (10 * Δt)
 
     # v_sponge = w_sponge = Relaxation(rate=damping_rate, mask=mask_right)
     # u_sponge = Relaxation(rate=damping_rate, mask=mask_right, target=U₀)
     # b_sponge = Relaxation(rate=damping_rate, mask=mask_right, target=b_target)
 
-    v_sponge = w_sponge = Relaxation(rate=damping_rate, mask=combined_mask)
-    u_sponge = Relaxation(rate=damping_rate, mask=combined_mask, target=U₀)
-    b_sponge = Relaxation(rate=damping_rate, mask=combined_mask, target=b_target)
+    v_sponge = w_sponge = Relaxation(rate=damping_rate, mask=mask_top)
+    u_sponge = Relaxation(rate=damping_rate, mask=mask_top, target=U₀)
+    b_sponge = Relaxation(rate=damping_rate, mask=mask_top, target=b_target)
     
     if solver == "FFT"
         model = NonhydrostaticModel(; grid,
                                     advection = WENO(),
-                                    coriolis = FPlane(f=0.1),
-                                    tracers = (:b, :c),
+                                    tracers = :b,
                                     buoyancy = BuoyancyTracer(),
                                     # timestepper = :RungeKutta3,
                                     boundary_conditions=(; u=uv_bcs, v=uv_bcs),
@@ -73,8 +69,7 @@ function run_simulation(solver, preconditioner)
         model = NonhydrostaticModel(; grid,
                                     pressure_solver = ImmersedPoissonSolver(grid, preconditioner=preconditioner, reltol=1e-8),
                                     advection = WENO(),
-                                    coriolis = FPlane(f=0.1),
-                                    tracers = (:b, :c),
+                                    tracers = :b,
                                     buoyancy = BuoyancyTracer(),
                                     # timestepper = :RungeKutta3,
                                     boundary_conditions=(; u=uv_bcs, v=uv_bcs),
@@ -84,7 +79,7 @@ function run_simulation(solver, preconditioner)
     @info "Created $model"
     @info "with pressure solver $(model.pressure_solver)"
     
-    set!(model, b=b_initial, c=1, u=U₀)
+    set!(model, b=b_initial, u=U₀)
     
     #####
     ##### Simulation
@@ -97,12 +92,10 @@ function run_simulation(solver, preconditioner)
 
     wall_time = Ref(time_ns())
     
-    b, c = model.tracers
+    b = model.tracers.b
     u, v, w = model.velocities
     B = Field(Integral(b))
-    C = Field(Integral(c))
     compute!(B)
-    compute!(C)
     
     δ = Field(∂x(u) + ∂y(v) + ∂z(w))
     compute!(δ)
@@ -146,14 +139,14 @@ function run_simulation(solver, preconditioner)
     
     simulation.output_writers[:jld2] = JLD2OutputWriter(model, outputs;
                                                         filename = prefix * "_fieldss",
-                                                        # schedule = TimeInterval(2e-3),
-                                                        schedule = IterationInterval(100),
+                                                        schedule = TimeInterval(2e-3),
+                                                        # schedule = IterationInterval(100),
                                                         overwrite_existing = true)
     
     simulation.output_writers[:timeseries] = JLD2OutputWriter(model, (; B, C);
                                                               filename = prefix * "_time_seriess",
-                                                            # schedule = TimeInterval(2e-3),
-                                                        schedule = IterationInterval(100),
+                                                            schedule = TimeInterval(2e-3),
+                                                        # schedule = IterationInterval(100),
                                                               overwrite_existing = true)
     
     run!(simulation)
@@ -255,4 +248,4 @@ record(fig, "FFT_PCG_nonlinear_topography.mp4", 1:Nt, framerate=30) do nn
     n[] = nn
 end
 @info "Animation completed"
-## 
+##
