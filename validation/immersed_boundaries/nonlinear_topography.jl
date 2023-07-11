@@ -143,7 +143,7 @@ function run_simulation(solver, preconditioner)
                                                         # schedule = IterationInterval(100),
                                                         overwrite_existing = true)
     
-    simulation.output_writers[:timeseries] = JLD2OutputWriter(model, (; B, C);
+    simulation.output_writers[:timeseries] = JLD2OutputWriter(model, (; B);
                                                               filename = prefix * "_time_seriess",
                                                             schedule = TimeInterval(2e-3),
                                                         # schedule = IterationInterval(100),
