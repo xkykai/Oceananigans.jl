@@ -90,7 +90,7 @@ end
 function solve_for_pressure!(pressure, solver::ImmersedPoissonSolver, Δt, U★)
     # TODO: Is this the right criteria?
     min_Δt = eps(typeof(Δt))
-    Δt < min_Δt && return pressure
+    Δt <= min_Δt && return pressure
 
     rhs = solver.rhs
     grid = solver.grid
