@@ -10,17 +10,22 @@ include("immersed_pressure_solver.jl")
 #####
 
 function run_simulation(solver, preconditioner)
-    Nx = 2048
+    Nx = 1024
     Nz = Nx * 2
+    Ny = 1
     
     grid = RectilinearGrid(GPU(), Float64,
-                           size = (Nx, Nz), 
+                           size = (Nx, Ny, Nz), 
+                           halo = (4, 4, 4),
                            x = (0, 30),
+                           y = (0, 1),
                            z = (0, 60),
-                           topology = (Periodic, Flat, Bounded))
+                           topology = (Periodic, Periodic, Bounded))
     
     k = 2π / 10
-    Δt = 5e-4
+    Δt = 1e-4
+    max_Δt = 1e-3
+
     N² = 1 / (150 * 5e-4)^2
     U₀ = 50
     m = √(k^2 - N² / U₀^2)
@@ -47,7 +52,7 @@ function run_simulation(solver, preconditioner)
 
     # combined_mask(x, y, z) = 0.5 * (exp(-(z - 1.25)^2 / (2 * 0.05^2)) + exp(-(x - 28)^2 / (2 * 0.5^2)))
 
-    damping_rate = 1 / (10 * Δt)
+    damping_rate = 1 / (3 * max_Δt)
 
     # v_sponge = w_sponge = Relaxation(rate=damping_rate, mask=mask_right)
     # u_sponge = Relaxation(rate=damping_rate, mask=mask_right, target=U₀)
@@ -62,7 +67,7 @@ function run_simulation(solver, preconditioner)
                                     advection = WENO(),
                                     tracers = :b,
                                     buoyancy = BuoyancyTracer(),
-                                    # timestepper = :RungeKutta3,
+                                    timestepper = :RungeKutta3,
                                     boundary_conditions=(; u=uv_bcs, v=uv_bcs),
                                     forcing=(u=u_sponge, v=v_sponge, w=w_sponge, b=b_sponge))
     else
@@ -71,7 +76,7 @@ function run_simulation(solver, preconditioner)
                                     advection = WENO(),
                                     tracers = :b,
                                     buoyancy = BuoyancyTracer(),
-                                    # timestepper = :RungeKutta3,
+                                    timestepper = :RungeKutta3,
                                     boundary_conditions=(; u=uv_bcs, v=uv_bcs),
                                     forcing=(u=u_sponge, v=v_sponge, w=w_sponge, b=b_sponge))
     end
@@ -87,8 +92,8 @@ function run_simulation(solver, preconditioner)
     
     simulation = Simulation(model, Δt=Δt, stop_time=30)
 
-    # wizard = TimeStepWizard(max_change=1.05, max_Δt=1e-3, cfl=0.6)
-    # simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(1))
+    wizard = TimeStepWizard(max_change=1.05, max_Δt=max_Δt, cfl=0.6)
+    simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(1))
 
     wall_time = Ref(time_ns())
     

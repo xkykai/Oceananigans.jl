@@ -111,7 +111,7 @@ function solve_for_pressure!(pressure, solver::ImmersedPoissonSolver, Δt, U★)
     wait(device(arch), event)
 
     # Solve pressure Pressure equation for pressure, given rhs
-    @info "Δt before pressure solve: $(Δt)"
+    # @info "Δt before pressure solve: $(Δt)"
     solve!(pressure, solver.pcg_solver, rhs)
 
     return pressure
