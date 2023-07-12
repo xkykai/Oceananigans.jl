@@ -23,7 +23,7 @@ function run_simulation(solver, preconditioner)
                            topology = (Periodic, Periodic, Bounded))
     
     k = 2π / 10
-    Δt = 1e-4
+    Δt = 2e-4
     max_Δt = 1e-3
 
     N² = 1 / (150 * 5e-4)^2
@@ -52,7 +52,7 @@ function run_simulation(solver, preconditioner)
 
     # combined_mask(x, y, z) = 0.5 * (exp(-(z - 1.25)^2 / (2 * 0.05^2)) + exp(-(x - 28)^2 / (2 * 0.5^2)))
 
-    damping_rate = 1 / (3 * max_Δt)
+    damping_rate = 1 / (3 * Δt)
 
     # v_sponge = w_sponge = Relaxation(rate=damping_rate, mask=mask_right)
     # u_sponge = Relaxation(rate=damping_rate, mask=mask_right, target=U₀)
@@ -67,8 +67,8 @@ function run_simulation(solver, preconditioner)
                                     advection = WENO(),
                                     tracers = :b,
                                     buoyancy = BuoyancyTracer(),
-                                    timestepper = :RungeKutta3,
-                                    boundary_conditions=(; u=uv_bcs, v=uv_bcs),
+                                    # timestepper = :RungeKutta3,
+                                    # boundary_conditions=(; u=uv_bcs, v=uv_bcs),
                                     forcing=(u=u_sponge, v=v_sponge, w=w_sponge, b=b_sponge))
     else
         model = NonhydrostaticModel(; grid,
@@ -76,7 +76,7 @@ function run_simulation(solver, preconditioner)
                                     advection = WENO(),
                                     tracers = :b,
                                     buoyancy = BuoyancyTracer(),
-                                    timestepper = :RungeKutta3,
+                                    # timestepper = :RungeKutta3,
                                     boundary_conditions=(; u=uv_bcs, v=uv_bcs),
                                     forcing=(u=u_sponge, v=v_sponge, w=w_sponge, b=b_sponge))
     end
@@ -90,10 +90,10 @@ function run_simulation(solver, preconditioner)
     ##### Simulation
     #####
     
-    simulation = Simulation(model, Δt=Δt, stop_time=30)
+    simulation = Simulation(model, Δt=Δt, stop_time=5)
 
-    wizard = TimeStepWizard(max_change=1.05, max_Δt=max_Δt, cfl=0.6)
-    simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(1))
+    # wizard = TimeStepWizard(max_change=1.05, max_Δt=max_Δt, cfl=0.6)
+    # simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(1))
 
     wall_time = Ref(time_ns())
     
@@ -144,14 +144,14 @@ function run_simulation(solver, preconditioner)
     
     simulation.output_writers[:jld2] = JLD2OutputWriter(model, outputs;
                                                         filename = prefix * "_fieldss",
-                                                        schedule = TimeInterval(2e-3),
-                                                        # schedule = IterationInterval(100),
+                                                        # schedule = TimeInterval(2e-3),
+                                                        schedule = IterationInterval(100),
                                                         overwrite_existing = true)
     
     simulation.output_writers[:timeseries] = JLD2OutputWriter(model, (; B);
                                                               filename = prefix * "_time_seriess",
-                                                            schedule = TimeInterval(2e-3),
-                                                        # schedule = IterationInterval(100),
+                                                            # schedule = TimeInterval(2e-3),
+                                                        schedule = IterationInterval(100),
                                                               overwrite_existing = true)
     
     run!(simulation)
@@ -159,7 +159,6 @@ end
 
 run_simulation("ImmersedPoissonSolver", "FFT")
 run_simulation("FFT", nothing)
-
 # function nonlinear_topography(h, x)
 #     k = 1
 #     N² = 1 / (150 * 0.5e-2)^2
@@ -248,7 +247,7 @@ Label(fig[0, :], titlestr, font=:bold, tellwidth=false, tellheight=false)
 
 # display(fig)
 
-record(fig, "FFT_PCG_nonlinear_topography.mp4", 1:Nt, framerate=30) do nn
+record(fig, "FFT_PCG_nonlinear_topography.mp4", 1:Nt, framerate=10) do nn
     # @info string("Plotting frame ", nn, " of ", Nt)
     n[] = nn
 end
