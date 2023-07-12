@@ -1,6 +1,7 @@
 using Oceananigans
 using CairoMakie
 using Printf
+using JLD2
 
 include("immersed_pressure_solver.jl")
 
@@ -31,7 +32,7 @@ function run_simulation(solver, preconditioner; Nr, Ra, Pr=1)
                            topology = (Bounded, Flat, Bounded))
 
 
-    @inline function local_roughness(x, x₀, h)
+    @inline function local_roughness_bottom(x, x₀, h)
         if x > x₀ - h && x <= x₀
             return x + h - x₀
         elseif x > x₀ && x <= x₀ + h
@@ -41,12 +42,30 @@ function run_simulation(solver, preconditioner; Nr, Ra, Pr=1)
         end
     end
 
-    topography(x, y) = sum([local_roughness(x, x₀, h) for x₀ in x₀s])
+    @inline function local_roughness_top(x, x₀, h)
+        if x > x₀ - h && x <= x₀
+            return -x + Lx - h + x₀
+        elseif x > x₀ && x <= x₀ + h
+            return x + Lx - h - x₀
+        else
+            return Lx
+        end
+    end
+
+    @inline roughness_bottom(x, y, z) = z <= sum([local_roughness_bottom(x, x₀, h) for x₀ in x₀s])
+    @inline roughness_top(x, y, z) = z >= sum([local_roughness_top(x, x₀, h) for x₀ in x₀s])
+    @inline mask(x, y, z) = roughness_bottom(x, y, z) | roughness_top(x, y, z)
+
     # topography(x, y) = 0.01
 
-    grid = ImmersedBoundaryGrid(grid, GridFittedBottom(topography))
+    grid = ImmersedBoundaryGrid(grid, GridFittedBoundary(mask))
     
     @info "Created $grid"
+
+    @inline function rayleigh_benard_buoyancy(x, y, z, t)
+        above_centerline = z > Lz / 2
+        return ifelse(above_centerline, -S/2, S/2)
+    end
     
     u_bcs = FieldBoundaryConditions(top=ValueBoundaryCondition(0), bottom=ValueBoundaryCondition(0), immersed=ValueBoundaryCondition(0))
 
@@ -57,14 +76,16 @@ function run_simulation(solver, preconditioner; Nr, Ra, Pr=1)
     w_bcs = FieldBoundaryConditions(east=ValueBoundaryCondition(0), west=ValueBoundaryCondition(0),
                                     immersed=ValueBoundaryCondition(0))
 
-    b_bcs = FieldBoundaryConditions(top=ValueBoundaryCondition(0), immersed=ValueBoundaryCondition(S))
+    b_bcs = FieldBoundaryConditions(top=ValueBoundaryCondition(0), immersed=ValueBoundaryCondition(rayleigh_benard_buoyancy), 
+                                    bottom=ValueBoundaryCondition(S/2), top=ValueBoundaryCondition(-S/2))
 
-    Δt = 1e-6
+    Δt = 5e-8
     max_Δt = 1e-5
     
     if solver == "FFT"
         model = NonhydrostaticModel(; grid,
-                                    advection = WENO(),
+                                    # advection = WENO(),
+                                    advection = CenteredSecondOrder(),
                                     tracers = (:b),
                                     buoyancy = BuoyancyTracer(),
                                     closure = ScalarDiffusivity(ν=ν, κ=κ),
@@ -73,7 +94,8 @@ function run_simulation(solver, preconditioner; Nr, Ra, Pr=1)
     else
         model = NonhydrostaticModel(; grid,
                                     pressure_solver = ImmersedPoissonSolver(grid, preconditioner=preconditioner, reltol=1e-8),
-                                    advection = WENO(),
+                                    # advection = WENO(),
+                                    advection = CenteredSecondOrder(),
                                     tracers = (:b),
                                     buoyancy = BuoyancyTracer(),
                                     closure = ScalarDiffusivity(ν=ν, κ=κ),
@@ -84,9 +106,8 @@ function run_simulation(solver, preconditioner; Nr, Ra, Pr=1)
     @info "Created $model"
     @info "with pressure solver $(model.pressure_solver)"
     @info "with b boundary conditions $(model.tracers.b.boundary_conditions)"
-    @info "u, v, w boundary conditions $(model.velocities.u.boundary_conditions)"
 
-    b_initial(x, y, z) = -S * z + S / 2 - rand() * Ra / 100000
+    b_initial(x, y, z) = -S*z + S/2 - rand() * Ra / 100000
     
     set!(model, b=b_initial)
     
@@ -94,7 +115,7 @@ function run_simulation(solver, preconditioner; Nr, Ra, Pr=1)
     ##### Simulation
     #####
     
-    simulation = Simulation(model, Δt=Δt, stop_time=5)
+    simulation = Simulation(model, Δt=Δt, stop_iteration=2000000)
 
     # wizard = TimeStepWizard(max_change=1.05, max_Δt=max_Δt, cfl=0.6)
     # simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(1))
@@ -141,44 +162,68 @@ function run_simulation(solver, preconditioner; Nr, Ra, Pr=1)
     prefix = "2D_rough_rayleighbenard_" * solver_type
     
     outputs = merge(model.velocities, model.tracers, (; δ))
+
+    function init_save_some_metadata!(file, model)
+        file["metadata/author"] = "Xin Kai Lee"
+        file["metadata/parameters/density"] = 1027
+        file["metadata/parameters/rayleigh_number"] = Ra
+        file["metadata/parameters/prandtl_number"] = Pr
+        return nothing
+    end
     
     simulation.output_writers[:jld2] = JLD2OutputWriter(model, outputs;
-                                                        filename = prefix * "_fieldss",
-                                                        # schedule = TimeInterval(5e-3),
-                                                        schedule = IterationInterval(1000),
+                                                        filename = prefix * "_Ra_$(Ra)_Nr_$(Nr)_fields",
+                                                        # schedule = TimeInterval(5e-4),
+                                                        schedule = IterationInterval(2000),
                                                         overwrite_existing = true)
     
     simulation.output_writers[:timeseries] = JLD2OutputWriter(model, (; WB);
-                                                              filename = prefix * "_time_seriess",
-                                                            #   schedule = TimeInterval(5e-3),
-                                                        schedule = IterationInterval(1000),
+                                                              filename = prefix * "_Ra_$(Ra)_Nr_$(Nr)_time_series",
+                                                            #   schedule = TimeInterval(5e-4),
+                                                        schedule = IterationInterval(2000),
                                                               overwrite_existing = true)
     
     run!(simulation)
 end
 
-Nr = 2
-Ra = 1e5
+Nr = 10
+Ra = 1e9
 
 run_simulation("ImmersedPoissonSolver", "FFT", Nr=Nr, Ra=Ra)
 run_simulation("FFT", nothing, Nr=Nr, Ra=Ra)
-
 #####
 ##### Visualize
 #####
 ##
-filename_FFT = "2D_rough_rayleighbenard_FFTBasedPoissonSolver_fieldss.jld2"
+filename_FFT = "2D_rough_rayleighbenard_FFTBasedPoissonSolver_Ra_$(Ra)_Nr_$(Nr)_fields.jld2"
+filename_FFT_timeseries = "2D_rough_rayleighbenard_FFTBasedPoissonSolver_Ra_$(Ra)_Nr_$(Nr)_time_series.jld2"
+
+metadata = jldopen(filename_FFT, "r") do file
+    metadata = Dict()
+    for key in keys(file["metadata/parameters"])
+        metadata[key] = file["metadata/parameters/$(key)"]
+    end
+    return metadata
+end
+
+κ = 1
+S = metadata["rayleigh_number"]
+
 bt_FFT = FieldTimeSeries(filename_FFT, "b")
 ut_FFT = FieldTimeSeries(filename_FFT, "u")
 wt_FFT = FieldTimeSeries(filename_FFT, "w")
 δt_FFT = FieldTimeSeries(filename_FFT, "δ")
+Nu_FFT = FieldTimeSeries(filename_FFT_timeseries, "WB") ./ (κ * S)
 times = bt_FFT.times
 
-filename_PCG = "2D_rough_rayleighbenard_ImmersedPoissonSolver_fieldss.jld2"
+filename_PCG = "2D_rough_rayleighbenard_ImmersedPoissonSolver_Ra_$(Ra)_Nr_$(Nr)_fields.jld2"
+filename_PCG_timeseries = "2D_rough_rayleighbenard_ImmersedPoissonSolver_Ra_$(Ra)_Nr_$(Nr)_time_series.jld2"
+
 bt_PCG = FieldTimeSeries(filename_PCG, "b")
 ut_PCG = FieldTimeSeries(filename_PCG, "u")
 wt_PCG = FieldTimeSeries(filename_PCG, "w")
 δt_PCG = FieldTimeSeries(filename_PCG, "δ")
+Nu_PCG = FieldTimeSeries(filename_PCG_timeseries, "WB") ./ (κ * S)
 
 fig = Figure(resolution=(1500, 1000))
 n = Observable(1)
@@ -195,15 +240,19 @@ axu_PCG = Axis(fig[2, 2], title="u (PCG solver)")
 axw_PCG = Axis(fig[2, 3], title="w (PCG solver)")
 axd_PCG = Axis(fig[2, 4], title="Divergence (PCG solver)")
 
+axNu = Axis(fig[3, 2:3], title="Nu", xlabel="Nu", ylabel="z")
+
 bn_FFT = @lift interior(bt_FFT[$n], :, 1, :)
 un_FFT = @lift interior(ut_FFT[$n], :, 1, :)
 wn_FFT = @lift interior(wt_FFT[$n], :, 1, :)
 δn_FFT = @lift interior(δt_FFT[$n], :, 1, :)
+Nun_FFT = @lift Nu_FFT[1, 1, :, $n]
 
 bn_PCG = @lift interior(bt_PCG[$n], :, 1, :)
 un_PCG = @lift interior(ut_PCG[$n], :, 1, :)
 wn_PCG = @lift interior(wt_PCG[$n], :, 1, :)
 δn_PCG = @lift interior(δt_PCG[$n], :, 1, :)
+Nun_PCG = @lift Nu_PCG[1, 1, :, $n]
 
 Nx = bt_FFT.grid.Nx
 Nz = bt_FFT.grid.Nz
@@ -211,27 +260,33 @@ Nt = length(bt_FFT.times)
 
 xC = bt_FFT.grid.xᶜᵃᵃ[1:Nx]
 zC = bt_FFT.grid.zᵃᵃᶜ[1:Nz]
+xNu, yNu, zNu = nodes(WB_data)
 
 blim = maximum([maximum(abs, bt_FFT), maximum(abs, bt_PCG)])
 ulim = maximum([maximum(abs, ut_FFT), maximum(abs, ut_PCG)])
 wlim = maximum([maximum(abs, wt_FFT), maximum(abs, wt_PCG)])
 δlim = 1e-8
+Nulim = maximum([maximum(abs, Nu_FFT), maximum(abs, Nu_PCG)])
 
-heatmap!(axb_FFT, xC, zC, bn_FFT, colormap=:balance, colorrange=(-blim, blim))
+heatmap!(axb_FFT, xC, zC, bn_FFT, colormap=:balance, colorrange=(0, blim))
 heatmap!(axu_FFT, xC, zC, un_FFT, colormap=:balance, colorrange=(-ulim, ulim))
 heatmap!(axw_FFT, xC, zC, wn_FFT, colormap=:balance, colorrange=(-wlim, wlim))
 heatmap!(axd_FFT, xC, zC, δn_FFT, colormap=:balance, colorrange=(-δlim, δlim))
 
-heatmap!(axb_PCG, xC, zC, bn_PCG, colormap=:balance, colorrange=(-blim, blim))
+heatmap!(axb_PCG, xC, zC, bn_PCG, colormap=:balance, colorrange=(0, blim))
 heatmap!(axu_PCG, xC, zC, un_PCG, colormap=:balance, colorrange=(-ulim, ulim))
 heatmap!(axw_PCG, xC, zC, wn_PCG, colormap=:balance, colorrange=(-wlim, wlim))
 heatmap!(axd_PCG, xC, zC, δn_PCG, colormap=:balance, colorrange=(-δlim, δlim))
+
+lines!(axNu, Nun_FFT, zNu)
+lines!(axNu, Nun_PCG, zNu)
+xlims!(axNu, (0, Nulim))
 
 Label(fig[0, :], titlestr, font=:bold, tellwidth=false, tellheight=false)
 
 # display(fig)
 
-record(fig, "FFT_PCG_2D_rough_rayleighbenard.mp4", 1:Nt, framerate=30) do nn
+record(fig, "FFT_PCG_2D_rough_rayleighbenard_Ra_$(Ra)_Nr_$(Nr).mp4", 1:Nt, framerate=10) do nn
     # @info string("Plotting frame ", nn, " of ", Nt)
     n[] = nn
 end
