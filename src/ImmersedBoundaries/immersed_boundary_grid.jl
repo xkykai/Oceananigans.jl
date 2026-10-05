@@ -154,6 +154,8 @@ end
 isrectilinear(ibg::IBG) = isrectilinear(ibg.underlying_grid)
 
 function Base.:(==)(grid1::IBG, grid2::IBG)
+    grid1 === grid2 && return true
+
     equal_underlying_grids = grid1.underlying_grid == grid2.underlying_grid
     equal_immersed_boundaries = grid1.immersed_boundary == grid2.immersed_boundary
 
